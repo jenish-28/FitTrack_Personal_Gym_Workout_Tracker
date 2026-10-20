@@ -1,88 +1,178 @@
-# FitTrack — Personal Gym & Workout Tracking Platform
+# FitTrack — Personal Gym & Workout Tracker
 
-FitTrack is a full-stack gym workout tracking and strength progression platform built with **React + TypeScript + Tailwind CSS** on the frontend and **Python + FastAPI + SQLAlchemy 2.0 + Alembic + PostgreSQL** on the backend.
+FitTrack is a full-stack workout tracking application for logging gym sessions, managing exercises and routines, and monitoring strength and training progress over time.
 
----
+## 🚀 Live Demo
 
-## Core Features
+**[Open FitTrack](https://fittrack-app-vx8f.onrender.com)**
 
-1. **Interactive Dashboard**:
-   - Real-time metrics calculated directly from PostgreSQL: total workouts completed, weekly workout count vs. goal, cumulative and weekly training volume, active/longest workout streaks, 7-day volume bar chart, recent workouts, unlocked personal records, favorite exercises, and 1-tap routine quick-start.
-2. **Active Workout Logger**:
-   - Start an empty freestyle workout or launch directly from a saved routine or starter template.
-   - Supports 4 tracking modes: **Weight & Reps (`weight_reps`)**, **Bodyweight Reps Only (`reps_only`)**, **Duration (`duration`)**, and **Distance & Time (`distance`)**.
-   - Supports **Warm-up (`W`)**, **Working**, **Dropset (`D`)**, and **Failure (`F`)** sets.
-   - Displays **Previous performance** for each exercise set automatically.
-   - Dual-layer autosave (`localStorage` + debounced `PUT /api/workouts/{id}`) so page refreshes or navigation never lose active session data.
-   - Built-in interactive **Rest Timer** with presets (`60s`, `90s`, `120s`, `180s`), `+15s / -15s` controls, pause/resume, and skip.
-   - Instant `KG` / `LBS` unit switching.
-   - End-of-workout completion summary with duration, sets, total volume, and newly unlocked Personal Records.
-3. **User-Managed Exercise Library (Full CRUD)**:
-   - Pre-seeded with 18 system exercises (`Bench Press`, `Incline Dumbbell Press`, `Chest Fly`, `Lat Pulldown`, `Seated Cable Row`, `Pull-Up`, `Shoulder Press`, `Lateral Raise`, `Barbell Curl`, `Triceps Pushdown`, `Squat`, `Leg Press`, `Romanian Deadlift`, `Leg Curl`, `Calf Raise`, `Plank`, `Crunches`, `Treadmill Run`).
-   - Users can **Add**, **Edit**, and **Delete / Archive** custom exercises.
-   - **Historical Data Protection**: Deleting a custom exercise that has been used in historical workouts automatically **soft-archives** (`is_archived = true`) the exercise and optionally removes it from active routines, ensuring historical workout logs and statistics are never corrupted.
-   - Strict backend ownership & permission enforcement (`403 Forbidden` if attempting to modify system exercises or another user's custom exercises).
-4. **Workout Routines & Starter Templates**:
-   - Create, edit, reorder, duplicate, and delete custom routines.
-   - Includes 6 optional starter templates (`Push Day`, `Pull Day`, `Leg Day`, `Upper Body`, `Lower Body`, `Full Body`).
-5. **Workout History, Progress Analytics & Personal Records**:
-   - Chronological workout history with search, muscle group, and date range filters, plus full historical workout editing and confirmed deletion.
-   - Interactive Recharts progression charts for exercise Max Weight, **Estimated 1RM (Epley Formula)**, session volume, weekly/monthly frequency, and sets per muscle group.
-   - Automatic, deduplicated Personal Record detection (`max_weight`, `best_1rm`, `max_reps`, `longest_duration`, `max_distance`).
-6. **User Profile & Settings**:
-   - Display name, email, training bio, avatar URL, `KG` / `LBS` unit toggle, `Dark` / `Light` theme toggle, weekly workout goal, default rest timer, password update, and confirmed account deletion.
+- **Source code:** [GitHub repository](https://github.com/jenish-28/fittrack)
 
----
+## ✨ Features
 
-## Mathematical & Domain Definitions
+### Dashboard
+- View completed workouts, weekly workout progress, training volume, and workout streaks.
+- Review recent sessions, personal records, and favorite exercises.
+- See a 7-day training-volume chart and quickly start a saved routine.
 
-- **Weighted Exercise Volume**:
-  $$\text{Volume} = \sum (\text{Weight} \times \text{Reps})$$
-  Calculated across completed non-warmup sets (`working`, `dropset`, `failure`) for `weight_reps` exercises. Warm-up sets and bodyweight-only (`reps_only`) sets contribute `0` external tonnage volume while tracking completed sets and repetitions.
-- **Estimated One-Rep Max (Epley Formula)**:
-  $$\text{1RM} = \text{Weight} \times \left(1 + \frac{\text{Reps}}{30}\right) \quad (\text{for } \text{Reps} > 1)$$
+### Workout Tracking
+- Start a freestyle workout or begin from a saved routine or starter template.
+- Track exercises using four modes: weight and reps, reps only, duration, or distance and time.
+- Record warm-up, working, dropset, and failure sets.
+- See previous performance while logging sets.
+- Use automatic session saving to help preserve progress when refreshing or navigating away.
+- Use the built-in rest timer with presets, pause/resume, skip, and time adjustments.
+- Switch between kilograms (KG) and pounds (LBS).
+- Review a completion summary with workout duration, sets, volume, and new personal records.
 
----
+### Exercise Library
+- Start with a library of common exercises covering chest, back, shoulders, arms, legs, core, and cardio.
+- Add, edit, and delete your own custom exercises.
+- Exercises used in past workouts can be archived instead of permanently removed, protecting historical workout records.
+- Backend permissions protect system exercises and users' custom exercises.
 
-## Setup & Local Execution Commands
+### Routines
+- Create, edit, reorder, duplicate, and delete workout routines.
+- Use starter templates such as Push Day, Pull Day, Leg Day, Upper Body, Lower Body, and Full Body.
 
-### 1. Backend Setup (FastAPI + PostgreSQL + Alembic)
+### Workout History & Analytics
+- Browse past workouts and filter by search, muscle group, or date range.
+- Edit historical workouts or delete them after confirmation.
+- View progress charts for maximum weight, estimated one-rep max (1RM), session volume, workout frequency, and sets by muscle group.
+- Automatically detect personal records for max weight, estimated 1RM, reps, duration, and distance.
 
-```powershell
-cd f:\Fit_Bit\New\backend
+### Profile & Settings
+- Manage your display name, email, training bio, and avatar URL.
+- Configure your weekly workout goal and default rest timer.
+- Change KG/LBS units and dark/light theme.
+- Update your password or delete your account.
 
-# 1. Copy example environment configuration
-Copy-Item .env.example .env
+## 🧰 Tech Stack
 
-# 2. Install Python dependencies
+| Layer | Technologies |
+| --- | --- |
+| Frontend | React, TypeScript, Vite, Tailwind CSS |
+| Charts & workout UI | Recharts and interactive workout components |
+| Backend | Python, FastAPI |
+| Database & ORM | PostgreSQL, SQLAlchemy 2.0 |
+| Database migrations | Alembic |
+| Testing | Pytest, Vitest, TypeScript type checking |
+| Deployment | Render |
+
+## 📊 Training Calculations
+
+**Weighted exercise volume**
+
+\[
+\text{Volume} = \sum (\text{Weight} \times \text{Reps})
+\]
+
+Volume is calculated for completed working, dropset, and failure sets for weighted exercises. Warm-up sets and reps-only exercises do not add external weight volume.
+
+**Estimated one-rep max (Epley formula)**
+
+\[
+\text{Estimated 1RM} = \text{Weight} \times \left(1 + \frac{\text{Reps}}{30}\right)
+\]
+
+The estimate is used when reps are greater than one.
+
+## 💻 Run Locally
+
+### Prerequisites
+- Python 3.10 or newer (use the version supported by the project's dependencies)
+- Node.js and npm
+- PostgreSQL
+
+### 1. Clone the repository
+
+\`\`\`bash
+git clone https://github.com/jenish-28/fittrack.git
+cd fittrack
+\`\`\`
+
+### 2. Configure and start the backend
+
+Open a terminal in the backend directory:
+
+\`\`\`bash
+cd backend
+python -m venv .venv
+\`\`\`
+
+Activate the virtual environment.
+
+**Windows PowerShell**
+\`\`\`powershell
+.\.venv\Scripts\Activate.ps1
+\`\`\`
+
+**macOS / Linux**
+\`\`\`bash
+source .venv/bin/activate
+\`\`\`
+
+Install dependencies and configure the environment:
+
+\`\`\`bash
 python -m pip install -r requirements.txt
+\`\`\`
 
-# 3. Run Alembic PostgreSQL migrations
+Create your local environment file from the provided example if the repository contains a `.env.example` file, then configure the PostgreSQL connection and any required application settings. Keep secrets and credentials out of version control.
+
+Run database migrations:
+
+\`\`\`bash
 python -m alembic upgrade head
+\`\`\`
 
-# 4. Run Backend Pytest Suite
-python -m pytest -v
+Start the API:
 
-# 5. Start FastAPI Server (http://localhost:8000)
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-```
+\`\`\`bash
+python -m uvicorn app.main:app --reload
+\`\`\`
 
-- **OpenAPI / Swagger UI Documentation**: `http://localhost:8000/docs`
+The API is typically available at [http://localhost:8000](http://localhost:8000), with interactive API documentation at [http://localhost:8000/docs](http://localhost:8000/docs).
 
-### 2. Frontend Setup (React + TypeScript + Vite)
+### 3. Install and start the frontend
 
-```powershell
-cd f:\Fit_Bit\New\frontend
+Open another terminal:
 
-# 1. Install dependencies
+\`\`\`bash
+cd frontend
 npm install
+npm run dev
+\`\`\`
 
-# 2. Run TypeScript & Vitest checks
+Open the local URL printed by Vite in your terminal (commonly [http://localhost:5173](http://localhost:5173)).
+
+> **Note:** Local setup may require environment variables and database settings specific to your configuration. Check the backend and frontend environment example files and project scripts before running the app.
+
+## 🧪 Tests
+
+Run the checks supported by the project:
+
+**Backend**
+\`\`\`bash
+cd backend
+python -m pytest -v
+\`\`\`
+
+**Frontend**
+\`\`\`bash
+cd frontend
 npm run typecheck
 npm test
+\`\`\`
 
-# 3. Start Vite Dev Server (http://localhost:5173)
-npm run dev
-```
+If a script is not defined in the relevant `package.json`, use the available project scripts instead.
 
-- **Local Application URL**: `http://localhost:5173`
+## 🔒 Security Notes
+
+- Do not commit `.env` files, passwords, API keys, or database credentials.
+- Use a separate PostgreSQL database and environment configuration for local development.
+- Keep account and exercise ownership checks enabled when modifying user data.
+
+## 📄 License
+
+No license is specified in this repository yet. Unless a license is added, reuse and redistribution are subject to the repository owner's rights.
