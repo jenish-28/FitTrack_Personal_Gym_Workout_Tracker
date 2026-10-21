@@ -4,7 +4,7 @@ FitTrack is a full-stack gym and workout tracking web application for planning r
 
 ## Live Demo
 
-**[Open FitTrack — Login Page](https://fittrack-app-vx8f.onrender.com/login)**
+**[Open FitTrack](https://fittrack-app-vx8f.onrender.com)**
 
 - **GitHub source code:** [jenish-28/FitTrack_Personal_Gym_Workout_Tracker](https://github.com/jenish-28/FitTrack_Personal_Gym_Workout_Tracker)
 
