@@ -314,6 +314,34 @@ def seed_initial_data(db: Session) -> None:
                     )
                     db.add(re_item)
 
+    # Ensure dedicated Admin account exists idempotently without touching existing users
+    admin_email = "admin@fittrack.app"
+    admin_user = db.query(User).filter(User.email == admin_email).first()
+    if not admin_user:
+        admin_user = User(
+            email=admin_email,
+            password_hash=hash_password("AdminPass123!"),
+            name="FitTrack Admin",
+            bio="Platform Administrator — Manages global system exercises, starter routine templates, and users.",
+            is_admin=True,
+        )
+        db.add(admin_user)
+        db.flush()
+        admin_settings = UserSettings(
+            user_id=admin_user.id,
+            weight_unit="kg",
+            theme="dark",
+            weekly_goal=4,
+            default_rest_seconds=90,
+        )
+        db.add(admin_settings)
+    elif not admin_user.is_admin:
+        admin_user.is_admin = True
+
+    owner_user = db.query(User).filter(User.email == "28jenish@gmail.com").first()
+    if owner_user and not owner_user.is_admin:
+        owner_user.is_admin = True
+
     db.commit()
 
 

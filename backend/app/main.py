@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.database import SessionLocal
 from app.services.seed import seed_initial_data
-from app.api import auth, exercises, routines, workouts, stats, settings as settings_router
+from app.api import auth, exercises, routines, workouts, stats, settings as settings_router, admin
 
 FRONTEND_DIST = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
 
@@ -47,6 +47,7 @@ app.include_router(routines.router)
 app.include_router(workouts.router)
 app.include_router(stats.router)
 app.include_router(settings_router.router)
+app.include_router(admin.router)
 
 
 @app.get("/api/health", tags=["Health"])

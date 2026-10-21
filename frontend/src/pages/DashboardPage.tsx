@@ -258,7 +258,11 @@ export const DashboardPage: React.FC = () => {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-white">Saved Routines</h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">One-tap session launch</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {stats.saved_routines.some((r) => !r.is_template)
+                  ? 'Custom routines prioritized first'
+                  : 'Ready-made starter templates'}
+              </p>
             </div>
             <Link
               to="/routines"
@@ -268,7 +272,7 @@ export const DashboardPage: React.FC = () => {
             </Link>
           </div>
 
-          <div className="flex-1 space-y-2.5 overflow-y-auto max-h-64 pr-1">
+          <div className="flex-1 space-y-3 overflow-y-auto max-h-64 pr-1">
             {stats.saved_routines.length === 0 ? (
               <div className="text-center py-8 space-y-2">
                 <p className="text-xs text-slate-400">No routines created yet.</p>
@@ -280,34 +284,79 @@ export const DashboardPage: React.FC = () => {
                 </button>
               </div>
             ) : (
-              stats.saved_routines.slice(0, 5).map((routine) => (
-                <div
-                  key={routine.id}
-                  className="p-3 rounded-lg border border-slate-200 dark:border-charcoal-800 bg-slate-50 dark:bg-charcoal-850 flex items-center justify-between gap-3 hover:border-lime-400/40 transition-colors"
-                >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
-                        {routine.name}
-                      </p>
-                      {routine.is_template && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 dark:bg-charcoal-700 text-slate-600 dark:text-slate-300 font-semibold">
-                          Template
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                      {routine.exercises.length} exercises
-                    </p>
+              <>
+                {stats.saved_routines.some((r) => !r.is_template) && (
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-lime-500 dark:text-lime-400 block">
+                      My Custom Routines
+                    </span>
+                    {stats.saved_routines
+                      .filter((r) => !r.is_template)
+                      .map((routine) => (
+                        <div
+                          key={routine.id}
+                          className="p-3 rounded-lg border border-lime-400/30 bg-slate-50 dark:bg-charcoal-850 flex items-center justify-between gap-3 hover:border-lime-400 transition-colors"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
+                                {routine.name}
+                              </p>
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-lime-400/15 text-lime-600 dark:text-lime-400 font-semibold border border-lime-400/30">
+                                Custom
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                              {routine.exercises.length} exercises
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => navigate(`/workout?routineId=${routine.id}`)}
+                            className="shrink-0 px-3 py-1.5 rounded-md bg-lime-400 hover:bg-lime-300 text-charcoal-950 font-bold text-xs transition-colors"
+                          >
+                            Start
+                          </button>
+                        </div>
+                      ))}
                   </div>
-                  <button
-                    onClick={() => navigate(`/workout?routineId=${routine.id}`)}
-                    className="shrink-0 px-3 py-1.5 rounded-md bg-lime-400 hover:bg-lime-300 text-charcoal-950 font-bold text-xs transition-colors"
-                  >
-                    Start
-                  </button>
-                </div>
-              ))
+                )}
+
+                {stats.saved_routines.some((r) => r.is_template) && (
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
+                      Ready-Made Templates
+                    </span>
+                    {stats.saved_routines
+                      .filter((r) => r.is_template)
+                      .map((routine) => (
+                        <div
+                          key={routine.id}
+                          className="p-3 rounded-lg border border-slate-200 dark:border-charcoal-800 bg-slate-50 dark:bg-charcoal-850 flex items-center justify-between gap-3 hover:border-lime-400/40 transition-colors"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
+                                {routine.name}
+                              </p>
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 dark:bg-charcoal-700 text-slate-600 dark:text-slate-300 font-semibold">
+                                Template
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                              {routine.exercises.length} exercises
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => navigate(`/workout?routineId=${routine.id}`)}
+                            className="shrink-0 px-3 py-1.5 rounded-md bg-lime-400 hover:bg-lime-300 text-charcoal-950 font-bold text-xs transition-colors"
+                          >
+                            Start
+                          </button>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

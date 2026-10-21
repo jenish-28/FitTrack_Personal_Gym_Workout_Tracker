@@ -10,6 +10,7 @@ import {
   TrendingUp,
   Trophy,
   Settings,
+  ShieldCheck,
   Sun,
   Moon,
   LogOut,
@@ -91,6 +92,21 @@ export const Layout: React.FC = () => {
               <span>{label}</span>
             </NavLink>
           ))}
+          {user?.is_admin && (
+            <NavLink
+              to="/admin"
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'bg-lime-400/15 text-lime-600 dark:text-lime-400 font-semibold border border-lime-400/30'
+                    : 'text-lime-600/90 dark:text-lime-400/90 hover:bg-lime-400/10'
+                }`
+              }
+            >
+              <ShieldCheck className="w-4 h-4 shrink-0" />
+              <span>Admin Panel</span>
+            </NavLink>
+          )}
         </nav>
 
         {/* Bottom Controls & User Profile */}
@@ -125,7 +141,16 @@ export const Layout: React.FC = () => {
                   {user.name.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">{user.name}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
+                      {user.name}
+                    </p>
+                    {user.is_admin && (
+                      <span className="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-lime-400 text-charcoal-950 shrink-0">
+                        Admin
+                      </span>
+                    )}
+                  </div>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{user.email}</p>
                 </div>
               </div>
@@ -154,6 +179,15 @@ export const Layout: React.FC = () => {
           </span>
         </div>
         <div className="flex items-center gap-2">
+          {user?.is_admin && (
+            <button
+              type="button"
+              onClick={() => navigate('/admin')}
+              className="px-2 py-1 rounded text-xs font-bold uppercase bg-lime-400/20 text-lime-400 border border-lime-400/40"
+            >
+              Admin
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setWeightUnitPreference(weightUnit === 'kg' ? 'lbs' : 'kg')}

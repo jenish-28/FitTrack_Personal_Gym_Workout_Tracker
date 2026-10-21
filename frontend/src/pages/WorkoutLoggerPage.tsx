@@ -603,6 +603,9 @@ export const WorkoutLoggerPage: React.FC = () => {
 
   // Empty State: Start Empty Workout or Pick a Routine
   if (!draft) {
+    const customRoutines = routines.filter((r) => !r.is_template);
+    const starterTemplates = routines.filter((r) => r.is_template);
+
     return (
       <div className="space-y-8">
         <div>
@@ -610,7 +613,7 @@ export const WorkoutLoggerPage: React.FC = () => {
             Workout Logger
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-            Start a freestyle session or launch directly from one of your saved routines.
+            Start a freestyle session or launch directly from your custom routines or starter templates.
           </p>
         </div>
 
@@ -634,16 +637,81 @@ export const WorkoutLoggerPage: React.FC = () => {
           </button>
         </div>
 
-        {/* Start from Routine */}
+        {/* 1. My Custom Routines (Shown FIRST whenever the user has created any custom routines) */}
+        {customRoutines.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <ClipboardList className="w-4 h-4 text-lime-400" /> My Custom Routines (
+                {customRoutines.length})
+              </h2>
+              <button
+                type="button"
+                onClick={() => navigate('/routines')}
+                className="text-xs font-semibold text-lime-500 dark:text-lime-400 hover:underline"
+              >
+                + Manage Custom Routines
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {customRoutines.map((r) => (
+                <div
+                  key={r.id}
+                  className="rounded-xl bg-white dark:bg-charcoal-900 border border-lime-400/30 p-5 flex flex-col justify-between hover:border-lime-400 transition-colors"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">
+                        {r.name}
+                      </h3>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-lime-400/15 text-lime-500 dark:text-lime-400 border border-lime-400/30">
+                        Custom
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1 line-clamp-2">
+                      {r.exercises.map((e) => e.exercise?.name).filter(Boolean).join(', ')}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleStartRoutine(r.id)}
+                    className="mt-4 w-full py-2 px-3 rounded-lg bg-lime-400 hover:bg-lime-300 text-charcoal-950 font-bold text-xs transition-colors"
+                  >
+                    Start {r.name}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 2. Ready-Made Starter Templates (Shown separated below Custom Routines, or by default if no Custom Routines exist) */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <ClipboardList className="w-4 h-4 text-lime-400" /> Start from Routine or Template
-            </h2>
+            <div>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <ClipboardList className="w-4 h-4 text-lime-400" /> Ready-Made Starter Templates
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {customRoutines.length === 0
+                  ? 'No custom routines created yet — start directly from a ready-made template below or create your own custom routine.'
+                  : 'Built-in training splits ready to launch anytime.'}
+              </p>
+            </div>
+            {customRoutines.length === 0 && (
+              <button
+                type="button"
+                onClick={() => navigate('/routines')}
+                className="px-3 py-1.5 rounded-lg bg-lime-400/15 border border-lime-400/40 text-lime-400 font-bold text-xs shrink-0"
+              >
+                + Create Custom Routine
+              </button>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {routines.map((r) => (
+            {starterTemplates.map((r) => (
               <div
                 key={r.id}
                 className="rounded-xl bg-white dark:bg-charcoal-900 border border-slate-200 dark:border-charcoal-800 p-5 flex flex-col justify-between hover:border-lime-400/40 transition-colors"
@@ -653,11 +721,9 @@ export const WorkoutLoggerPage: React.FC = () => {
                     <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">
                       {r.name}
                     </h3>
-                    {r.is_template && (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 dark:bg-charcoal-800 text-slate-400">
-                        Template
-                      </span>
-                    )}
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 dark:bg-charcoal-800 text-slate-400">
+                      Template
+                    </span>
                   </div>
                   <p className="text-xs text-slate-400 mt-1 line-clamp-2">
                     {r.exercises.map((e) => e.exercise?.name).filter(Boolean).join(', ')}

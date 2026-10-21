@@ -30,7 +30,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 
 export const ExerciseLibraryPage: React.FC = () => {
-  const { showToast } = useAuth();
+  const { user, showToast } = useAuth();
   const navigate = useNavigate();
 
   const [exercises, setExercises] = useState<Exercise[]>([]);
@@ -51,6 +51,7 @@ export const ExerciseLibraryPage: React.FC = () => {
   const [formCategory, setFormCategory] = useState<string>(EXERCISE_CATEGORIES[0]);
   const [formTrackingType, setFormTrackingType] = useState<TrackingType>('weight_reps');
   const [formInstructions, setFormInstructions] = useState('');
+  const [formIsSystem, setFormIsSystem] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -93,6 +94,7 @@ export const ExerciseLibraryPage: React.FC = () => {
     setFormCategory(EXERCISE_CATEGORIES[0]);
     setFormTrackingType('weight_reps');
     setFormInstructions('');
+    setFormIsSystem(Boolean(user?.is_admin));
     setFormError(null);
     setModalOpen(true);
   };
@@ -106,6 +108,7 @@ export const ExerciseLibraryPage: React.FC = () => {
     setFormCategory(ex.category || 'Strength');
     setFormTrackingType(ex.tracking_type);
     setFormInstructions(ex.instructions || '');
+    setFormIsSystem(Boolean(ex.is_system));
     setFormError(null);
     setModalOpen(true);
   };
@@ -149,9 +152,15 @@ export const ExerciseLibraryPage: React.FC = () => {
           category: formCategory,
           tracking_type: formTrackingType,
           instructions: formInstructions.trim() || undefined,
+          is_system: Boolean(user?.is_admin && formIsSystem),
         });
         setExercises((prev) => [created, ...prev]);
-        showToast(`Added custom exercise "${created.name}"`, 'success');
+        showToast(
+          created.is_system
+            ? `Added global system exercise "${created.name}"`
+            : `Added custom exercise "${created.name}"`,
+          'success'
+        );
       }
       setModalOpen(false);
     } catch (err) {
@@ -395,13 +404,13 @@ export const ExerciseLibraryPage: React.FC = () => {
                   >
                     <TrendingUp className="w-4 h-4" />
                   </button>
-                  {!ex.is_system && (
+                  {(!ex.is_system || user?.is_admin) && (
                     <>
                       <button
                         type="button"
                         onClick={() => openEditModal(ex)}
                         className="p-1.5 rounded-md text-slate-400 hover:text-lime-400 hover:bg-charcoal-800 transition-colors"
-                        title="Edit Custom Exercise"
+                        title={ex.is_system ? 'Admin: Edit System Exercise' : 'Edit Custom Exercise'}
                         aria-label={`Edit ${ex.name}`}
                       >
                         <Edit3 className="w-4 h-4" />
@@ -413,7 +422,11 @@ export const ExerciseLibraryPage: React.FC = () => {
                           setRemoveFromRoutines(true);
                         }}
                         className="p-1.5 rounded-md text-slate-400 hover:text-red-400 hover:bg-charcoal-800 transition-colors"
-                        title="Delete or Archive Custom Exercise"
+                        title={
+                          ex.is_system
+                            ? 'Admin: Delete or Archive System Exercise'
+                            : 'Delete or Archive Custom Exercise'
+                        }
                         aria-label={`Delete ${ex.name}`}
                       >
                         <Trash2 className="w-4 h-4" />
@@ -438,7 +451,11 @@ export const ExerciseLibraryPage: React.FC = () => {
           <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-charcoal-900 border border-slate-200 dark:border-charcoal-800 p-6 shadow-2xl space-y-5 my-8">
             <div className="flex items-center justify-between">
               <h2 id="exercise-modal-title" className="text-lg font-extrabold text-slate-900 dark:text-white">
-                {editingExercise ? 'Edit Custom Exercise' : 'Add Custom Exercise'}
+                {editingExercise
+                  ? editingExercise.is_system
+                    ? 'Edit System Exercise'
+                    : 'Edit Custom Exercise'
+                  : 'Add Custom Exercise'}
               </h2>
               <button
                 type="button"
@@ -460,6 +477,19 @@ export const ExerciseLibraryPage: React.FC = () => {
             )}
 
             <form onSubmit={handleSaveExercise} className="space-y-4">
+              {user?.is_admin && !editingExercise && (
+                <label className="flex items-center gap-2.5 p-3 rounded-lg bg-lime-400/10 border border-lime-400/30 text-xs font-semibold text-lime-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formIsSystem}
+                    onChange={(e) => setFormIsSystem(e.target.checked)}
+                    className="rounded border-charcoal-700 text-lime-500 focus:ring-lime-400"
+                  />
+                  <span>
+                    Admin: Save as Global System Exercise (visible to all users)
+                  </span>
+                </label>
+              )}
               <div>
                 <label
                   htmlFor="ex-name-input"

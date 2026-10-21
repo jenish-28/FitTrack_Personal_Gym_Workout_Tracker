@@ -31,7 +31,7 @@ interface DraftRoutineItem {
 }
 
 export const RoutinesPage: React.FC = () => {
-  const { weightUnit, showToast } = useAuth();
+  const { user, weightUnit, showToast } = useAuth();
   const navigate = useNavigate();
 
   const [routines, setRoutines] = useState<WorkoutRoutine[]>([]);
@@ -42,6 +42,7 @@ export const RoutinesPage: React.FC = () => {
   const [editingRoutine, setEditingRoutine] = useState<WorkoutRoutine | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [isTemplate, setIsTemplate] = useState(false);
   const [items, setItems] = useState<DraftRoutineItem[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -65,10 +66,11 @@ export const RoutinesPage: React.FC = () => {
     loadRoutines();
   }, [loadRoutines]);
 
-  const openCreateEditor = () => {
+  const openCreateEditor = (asTemplate = false) => {
     setEditingRoutine(null);
     setName('');
     setDescription('');
+    setIsTemplate(asTemplate);
     setItems([]);
     setEditorOpen(true);
   };
@@ -77,6 +79,7 @@ export const RoutinesPage: React.FC = () => {
     setEditingRoutine(routine);
     setName(routine.name);
     setDescription(routine.description || '');
+    setIsTemplate(Boolean(routine.is_template));
     setItems(
       routine.exercises.map((re) => ({
         exercise_id: re.exercise_id,
@@ -166,10 +169,16 @@ export const RoutinesPage: React.FC = () => {
         const created = await routinesApi.create({
           name: name.trim(),
           description: description.trim() || undefined,
+          is_template: Boolean(user?.is_admin && isTemplate),
           exercises: exercisesPayload,
         });
         setRoutines((prev) => [created, ...prev]);
-        showToast(`Created routine "${created.name}"`, 'success');
+        showToast(
+          created.is_template
+            ? `Created global starter template "${created.name}"`
+            : `Created custom routine "${created.name}"`,
+          'success'
+        );
       }
       setEditorOpen(false);
     } catch (err) {
@@ -204,6 +213,255 @@ export const RoutinesPage: React.FC = () => {
   const customRoutines = routines.filter((r) => !r.is_template);
   const starterTemplates = routines.filter((r) => r.is_template);
 
+  const customRoutinesSection = (
+    <section className="space-y-4">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <ClipboardList className="w-4 h-4 text-lime-400" />
+          <div>
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">
+              My Custom Routines ({customRoutines.length})
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {customRoutines.length > 0
+                ? 'Your personal custom routines — shown first across FitTrack.'
+                : 'Create your own custom routine to have it prioritized first across FitTrack.'}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-pulse">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-48 rounded-xl bg-charcoal-900 border border-charcoal-800" />
+          ))}
+        </div>
+      ) : customRoutines.length === 0 ? (
+        <div className="rounded-xl bg-white dark:bg-charcoal-900 border border-slate-200 dark:border-charcoal-800 p-8 text-center space-y-3">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            You haven&apos;t created any custom routines yet. Create one from scratch or duplicate a
+            ready-made starter template above.
+          </p>
+          <button
+            type="button"
+            onClick={() => openCreateEditor(false)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-lime-400 text-charcoal-950 font-bold text-xs"
+          >
+            <Plus className="w-4 h-4" /> New Custom Routine
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {customRoutines.map((routine) => (
+            <div
+              key={routine.id}
+              className="rounded-xl bg-white dark:bg-charcoal-900 border border-lime-400/30 p-5 flex flex-col justify-between hover:border-lime-400/60 transition-colors"
+            >
+              <div>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
+                      {routine.name}
+                    </h3>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-lime-400/15 text-lime-500 dark:text-lime-400 border border-lime-400/30">
+                      Custom
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => handleDuplicate(routine)}
+                      className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-charcoal-800"
+                      title="Duplicate Routine"
+                      aria-label={`Duplicate ${routine.name}`}
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openEditEditor(routine)}
+                      className="p-1.5 rounded text-slate-400 hover:text-lime-400 hover:bg-charcoal-800"
+                      title="Edit Routine"
+                      aria-label={`Edit ${routine.name}`}
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeletingRoutine(routine)}
+                      className="p-1.5 rounded text-slate-400 hover:text-red-400 hover:bg-charcoal-800"
+                      title="Delete Routine"
+                      aria-label={`Delete ${routine.name}`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+                {routine.description && (
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
+                    {routine.description}
+                  </p>
+                )}
+
+                <div className="mt-4 space-y-1.5">
+                  {routine.exercises.slice(0, 5).map((re, idx) => (
+                    <div
+                      key={`${routine.id}-${idx}`}
+                      className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300"
+                    >
+                      <span className="truncate pr-2">
+                        {idx + 1}. {re.exercise?.name || 'Exercise'}
+                      </span>
+                      <span className="font-mono text-slate-400 shrink-0">
+                        {re.target_sets} × {re.target_reps || 10}
+                        {re.target_weight_kg
+                          ? ` @ ${formatWeight(re.target_weight_kg, weightUnit)}`
+                          : ''}
+                      </span>
+                    </div>
+                  ))}
+                  {routine.exercises.length > 5 && (
+                    <p className="text-[11px] text-slate-400">
+                      +{routine.exercises.length - 5} more exercises
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="pt-4 mt-4 border-t border-slate-100 dark:border-charcoal-800">
+                <button
+                  type="button"
+                  onClick={() => navigate(`/workout?routineId=${routine.id}`)}
+                  className="w-full py-2 px-4 rounded-lg bg-lime-400 hover:bg-lime-300 text-charcoal-950 font-bold text-xs flex items-center justify-center gap-2 transition-colors"
+                >
+                  <PlayCircle className="w-4 h-4 stroke-[2.5]" />
+                  Start Routine Workout
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+
+  const starterTemplatesSection = (
+    <section className="space-y-4">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-lime-400" />
+          <div>
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">
+              Ready-Made Starter Templates ({starterTemplates.length})
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {customRoutines.length === 0
+                ? 'Default ready-made workout splits — start immediately or click Customize to save your own.'
+                : 'Optional proven templates — start directly or duplicate to customize.'}
+            </p>
+          </div>
+        </div>
+        {user?.is_admin && (
+          <button
+            type="button"
+            onClick={() => openCreateEditor(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-lime-400/50 bg-lime-400/10 text-lime-400 hover:bg-lime-400 hover:text-charcoal-950 font-bold text-xs transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" /> Add Global Starter Template
+          </button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {starterTemplates.map((tmpl) => (
+          <div
+            key={tmpl.id}
+            className="rounded-xl bg-white dark:bg-charcoal-900 border border-slate-200 dark:border-charcoal-800 p-5 flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
+                    {tmpl.name}
+                  </h3>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 dark:bg-charcoal-800 text-slate-400">
+                    Template
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => handleDuplicate(tmpl)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold text-lime-400 hover:bg-lime-400/10"
+                    title="Copy template to My Custom Routines"
+                  >
+                    <Copy className="w-3.5 h-3.5" /> Customize
+                  </button>
+                  {user?.is_admin && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => openEditEditor(tmpl)}
+                        className="p-1.5 rounded text-slate-400 hover:text-lime-400 hover:bg-charcoal-800"
+                        title="Admin: Edit Global Template"
+                        aria-label={`Edit ${tmpl.name}`}
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeletingRoutine(tmpl)}
+                        className="p-1.5 rounded text-slate-400 hover:text-red-400 hover:bg-charcoal-800"
+                        title="Admin: Delete Global Template"
+                        aria-label={`Delete ${tmpl.name}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {tmpl.description && (
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  {tmpl.description}
+                </p>
+              )}
+
+              <div className="mt-4 space-y-1.5">
+                {tmpl.exercises.map((re, idx) => (
+                  <div
+                    key={`${tmpl.id}-${idx}`}
+                    className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300"
+                  >
+                    <span className="truncate pr-2">
+                      {idx + 1}. {re.exercise?.name || 'Exercise'}
+                    </span>
+                    <span className="font-mono text-slate-400 shrink-0">
+                      {re.target_sets} × {re.target_reps || 10}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="pt-4 mt-4 border-t border-slate-100 dark:border-charcoal-800">
+              <button
+                type="button"
+                onClick={() => navigate(`/workout?routineId=${tmpl.id}`)}
+                className="w-full py-2 px-4 rounded-lg border border-lime-400/50 bg-lime-400/10 hover:bg-lime-400 hover:text-charcoal-950 text-lime-500 dark:text-lime-400 font-bold text-xs flex items-center justify-center gap-2 transition-colors"
+              >
+                <PlayCircle className="w-4 h-4" />
+                Start {tmpl.name}
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -213,214 +471,31 @@ export const RoutinesPage: React.FC = () => {
             Workout Routines
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-            Build custom training splits or start immediately from starter templates.
+            Build custom training splits or start immediately from ready-made starter templates.
           </p>
         </div>
         <button
           type="button"
-          onClick={openCreateEditor}
+          onClick={() => openCreateEditor(false)}
           className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-lime-400 hover:bg-lime-300 text-charcoal-950 font-bold text-sm transition-colors shadow-sm"
         >
           <Plus className="w-4 h-4 stroke-[2.5]" />
-          Create Routine
+          Create Custom Routine
         </button>
       </div>
 
-      {/* User's Custom Routines */}
-      <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <ClipboardList className="w-4 h-4 text-lime-400" />
-          <h2 className="text-base font-bold text-slate-900 dark:text-white">
-            My Routines ({customRoutines.length})
-          </h2>
-        </div>
-
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-pulse">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-48 rounded-xl bg-charcoal-900 border border-charcoal-800" />
-            ))}
-          </div>
-        ) : customRoutines.length === 0 ? (
-          <div className="rounded-xl bg-white dark:bg-charcoal-900 border border-slate-200 dark:border-charcoal-800 p-8 text-center space-y-3">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              You haven&apos;t created any custom routines yet. Create one from scratch or duplicate
-              a starter template below.
-            </p>
-            <button
-              type="button"
-              onClick={openCreateEditor}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-lime-400 text-charcoal-950 font-bold text-xs"
-            >
-              <Plus className="w-4 h-4" /> New Routine
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {customRoutines.map((routine) => (
-              <div
-                key={routine.id}
-                className="rounded-xl bg-white dark:bg-charcoal-900 border border-slate-200 dark:border-charcoal-800 p-5 flex flex-col justify-between hover:border-lime-400/40 transition-colors"
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
-                      {routine.name}
-                    </h3>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => handleDuplicate(routine)}
-                        className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-charcoal-800"
-                        title="Duplicate Routine"
-                        aria-label={`Duplicate ${routine.name}`}
-                      >
-                        <Copy className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => openEditEditor(routine)}
-                        className="p-1.5 rounded text-slate-400 hover:text-lime-400 hover:bg-charcoal-800"
-                        title="Edit Routine"
-                        aria-label={`Edit ${routine.name}`}
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDeletingRoutine(routine)}
-                        className="p-1.5 rounded text-slate-400 hover:text-red-400 hover:bg-charcoal-800"
-                        title="Delete Routine"
-                        aria-label={`Delete ${routine.name}`}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                  {routine.description && (
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
-                      {routine.description}
-                    </p>
-                  )}
-
-                  <div className="mt-4 space-y-1.5">
-                    {routine.exercises.slice(0, 5).map((re, idx) => (
-                      <div
-                        key={`${routine.id}-${idx}`}
-                        className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300"
-                      >
-                        <span className="truncate pr-2">
-                          {idx + 1}. {re.exercise?.name || 'Exercise'}
-                        </span>
-                        <span className="font-mono text-slate-400 shrink-0">
-                          {re.target_sets} × {re.target_reps || 10}
-                          {re.target_weight_kg
-                            ? ` @ ${formatWeight(re.target_weight_kg, weightUnit)}`
-                            : ''}
-                        </span>
-                      </div>
-                    ))}
-                    {routine.exercises.length > 5 && (
-                      <p className="text-[11px] text-slate-400">
-                        +{routine.exercises.length - 5} more exercises
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="pt-4 mt-4 border-t border-slate-100 dark:border-charcoal-800">
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/workout?routineId=${routine.id}`)}
-                    className="w-full py-2 px-4 rounded-lg bg-lime-400 hover:bg-lime-300 text-charcoal-950 font-bold text-xs flex items-center justify-center gap-2 transition-colors"
-                  >
-                    <PlayCircle className="w-4 h-4 stroke-[2.5]" />
-                    Start Routine Workout
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* Starter Routine Templates */}
-      <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-lime-400" />
-          <div>
-            <h2 className="text-base font-bold text-slate-900 dark:text-white">
-              Starter Routine Templates
-            </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Optional proven templates — start directly or duplicate to customize.
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {starterTemplates.map((tmpl) => (
-            <div
-              key={tmpl.id}
-              className="rounded-xl bg-white dark:bg-charcoal-900 border border-slate-200 dark:border-charcoal-800 p-5 flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
-                      {tmpl.name}
-                    </h3>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 dark:bg-charcoal-800 text-slate-400">
-                      Template
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleDuplicate(tmpl)}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold text-lime-400 hover:bg-lime-400/10"
-                    title="Copy template to My Routines"
-                  >
-                    <Copy className="w-3.5 h-3.5" /> Customize
-                  </button>
-                </div>
-
-                {tmpl.description && (
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    {tmpl.description}
-                  </p>
-                )}
-
-                <div className="mt-4 space-y-1.5">
-                  {tmpl.exercises.map((re, idx) => (
-                    <div
-                      key={`${tmpl.id}-${idx}`}
-                      className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300"
-                    >
-                      <span className="truncate pr-2">
-                        {idx + 1}. {re.exercise?.name || 'Exercise'}
-                      </span>
-                      <span className="font-mono text-slate-400 shrink-0">
-                        {re.target_sets} × {re.target_reps || 10}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="pt-4 mt-4 border-t border-slate-100 dark:border-charcoal-800">
-                <button
-                  type="button"
-                  onClick={() => navigate(`/workout?routineId=${tmpl.id}`)}
-                  className="w-full py-2 px-4 rounded-lg border border-lime-400/50 bg-lime-400/10 hover:bg-lime-400 hover:text-charcoal-950 text-lime-500 dark:text-lime-400 font-bold text-xs flex items-center justify-center gap-2 transition-colors"
-                >
-                  <PlayCircle className="w-4 h-4" />
-                  Start {tmpl.name}
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* Show My Custom Routines FIRST when the user has created at least 1 custom routine; otherwise show Ready-Made Starter Templates FIRST by default */}
+      {customRoutines.length > 0 ? (
+        <>
+          {customRoutinesSection}
+          {starterTemplatesSection}
+        </>
+      ) : (
+        <>
+          {starterTemplatesSection}
+          {customRoutinesSection}
+        </>
+      )}
 
       {/* Routine Editor Modal */}
       {editorOpen && (
@@ -432,7 +507,13 @@ export const RoutinesPage: React.FC = () => {
           <div className="w-full max-w-2xl rounded-2xl bg-white dark:bg-charcoal-900 border border-slate-200 dark:border-charcoal-800 p-6 shadow-2xl space-y-5 my-8 max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-charcoal-800 pb-3">
               <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">
-                {editingRoutine ? 'Edit Routine' : 'Create Workout Routine'}
+                {editingRoutine
+                  ? editingRoutine.is_template
+                    ? 'Edit Global Starter Template'
+                    : 'Edit Custom Routine'
+                  : isTemplate
+                  ? 'Create Global Starter Template'
+                  : 'Create Workout Routine'}
               </h2>
               <button
                 type="button"
@@ -444,6 +525,19 @@ export const RoutinesPage: React.FC = () => {
             </div>
 
             <form onSubmit={handleSaveRoutine} className="space-y-4 flex-1 overflow-y-auto pr-1">
+              {user?.is_admin && !editingRoutine && (
+                <label className="flex items-center gap-2.5 p-3 rounded-lg bg-lime-400/10 border border-lime-400/30 text-xs font-semibold text-lime-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isTemplate}
+                    onChange={(e) => setIsTemplate(e.target.checked)}
+                    className="rounded border-charcoal-700 text-lime-500 focus:ring-lime-400"
+                  />
+                  <span>
+                    Admin: Save as Global Ready-Made Starter Template (visible to all users)
+                  </span>
+                </label>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold uppercase text-slate-400 mb-1">

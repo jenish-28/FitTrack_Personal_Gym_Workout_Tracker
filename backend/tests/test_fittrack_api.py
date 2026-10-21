@@ -381,3 +381,91 @@ def test_user_data_isolation_and_set_validation(client: TestClient):
         },
     )
     assert bad_sync.status_code == 422
+
+
+def test_admin_panel_and_custom_routine_ordering(client: TestClient):
+    # 1. Ordinary user cannot access /api/admin/overview
+    user_headers, user_info = register_and_headers(client, "Regular User", "regular@fittrack.app")
+    assert user_info["is_admin"] is False
+    assert client.get("/api/admin/overview", headers=user_headers).status_code == 403
+
+    # 2. Seeded Admin account can sign in and access /api/admin/overview
+    admin_login = client.post(
+        "/api/auth/login",
+        json={"email": "admin@fittrack.app", "password": "AdminPass123!"},
+    )
+    assert admin_login.status_code == 200
+    admin_data = admin_login.json()
+    assert admin_data["user"]["is_admin"] is True
+    admin_headers = {"Authorization": f"Bearer {admin_data['access_token']}"}
+
+    overview = client.get("/api/admin/overview", headers=admin_headers)
+    assert overview.status_code == 200
+    ov = overview.json()
+    assert ov["total_users"] >= 2
+    assert ov["system_exercises_count"] >= 17
+    assert ov["template_routines_count"] >= 6
+
+    # 3. Admin can create a global system exercise and a global starter routine template
+    sys_ex = client.post(
+        "/api/exercises",
+        headers=admin_headers,
+        json={
+            "name": "Pendlay Row",
+            "primary_muscle": "Back",
+            "secondary_muscles": ["Biceps"],
+            "equipment": "Barbell",
+            "category": "Strength",
+            "tracking_type": "weight_reps",
+            "is_system": True,
+        },
+    )
+    assert sys_ex.status_code == 201
+    assert sys_ex.json()["is_system"] is True
+
+    global_tmpl = client.post(
+        "/api/routines",
+        headers=admin_headers,
+        json={
+            "name": "Powerbuilding Split",
+            "description": "Global starter template added by admin",
+            "is_template": True,
+            "exercises": [
+                {
+                    "exercise_id": sys_ex.json()["id"],
+                    "order_index": 0,
+                    "target_sets": 4,
+                    "target_reps": 6,
+                }
+            ],
+        },
+    )
+    assert global_tmpl.status_code == 201
+    assert global_tmpl.json()["is_template"] is True
+
+    # 4. Regular user sees starter templates by default, and once they create a custom routine, custom routines appear FIRST!
+    initial_routines = client.get("/api/routines", headers=user_headers).json()
+    assert all(r["is_template"] is True for r in initial_routines)
+
+    custom_r = client.post(
+        "/api/routines",
+        headers=user_headers,
+        json={
+            "name": "My Priority Custom Routine",
+            "exercises": [
+                {
+                    "exercise_id": sys_ex.json()["id"],
+                    "order_index": 0,
+                    "target_sets": 3,
+                    "target_reps": 10,
+                }
+            ],
+        },
+    )
+    assert custom_r.status_code == 201
+    assert custom_r.json()["is_template"] is False
+
+    ordered_routines = client.get("/api/routines", headers=user_headers).json()
+    assert ordered_routines[0]["is_template"] is False
+    assert ordered_routines[0]["name"] == "My Priority Custom Routine"
+

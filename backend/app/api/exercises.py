@@ -178,8 +178,9 @@ def create_custom_exercise(
         db.refresh(archived_match)
         return _enrich_exercises(db, [archived_match], current_user.id)[0]
 
+    make_system = bool(payload.is_system and current_user.is_admin)
     new_ex = Exercise(
-        user_id=current_user.id,
+        user_id=None if make_system else current_user.id,
         name=cleaned_name,
         primary_muscle=payload.primary_muscle.strip(),
         secondary_muscles=payload.secondary_muscles,
@@ -188,7 +189,7 @@ def create_custom_exercise(
         tracking_type=payload.tracking_type,
         instructions=payload.instructions,
         media_url=payload.media_url,
-        is_system=False,
+        is_system=make_system,
         is_archived=False,
     )
     db.add(new_ex)
@@ -227,13 +228,13 @@ def update_custom_exercise(
     if not ex:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exercise not found.")
 
-    if ex.is_system:
+    if ex.is_system and not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="System exercises are protected and cannot be modified.",
         )
 
-    if ex.user_id != current_user.id:
+    if not ex.is_system and ex.user_id != current_user.id and not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only edit your own custom exercises.",
@@ -292,28 +293,25 @@ def delete_or_archive_custom_exercise(
     if not ex:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exercise not found.")
 
-    if ex.is_system:
+    if ex.is_system and not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Built-in system exercises cannot be deleted.",
         )
 
-    if ex.user_id != current_user.id:
+    if not ex.is_system and ex.user_id != current_user.id and not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only delete your own custom exercises.",
         )
 
-    # Check if used in user's routines
-    routine_links = (
-        db.query(RoutineExercise)
-        .join(WorkoutRoutine, RoutineExercise.routine_id == WorkoutRoutine.id)
-        .filter(
-            RoutineExercise.exercise_id == ex.id,
-            WorkoutRoutine.user_id == current_user.id,
-        )
-        .all()
-    )
+    # Check if used in routines
+    routine_q = db.query(RoutineExercise).join(
+        WorkoutRoutine, RoutineExercise.routine_id == WorkoutRoutine.id
+    ).filter(RoutineExercise.exercise_id == ex.id)
+    if not current_user.is_admin:
+        routine_q = routine_q.filter(WorkoutRoutine.user_id == current_user.id)
+    routine_links = routine_q.all()
     removed_routines_count = 0
     if routine_links and remove_from_routines:
         for rl in routine_links:

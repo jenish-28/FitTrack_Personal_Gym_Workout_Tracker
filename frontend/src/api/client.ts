@@ -14,6 +14,8 @@ import {
   ExerciseProgressPoint,
   PersonalRecordItem,
   PreviousSetPerformance,
+  AdminPlatformStats,
+  AdminUserSummary,
 } from '../types';
 
 const TOKEN_KEY = 'fittrack_jwt_token';
@@ -125,6 +127,7 @@ export const routinesApi = {
   create: async (payload: {
     name: string;
     description?: string;
+    is_template?: boolean;
     exercises: Array<{
       exercise_id: number;
       order_index: number;
@@ -297,5 +300,17 @@ export const settingsApi = {
   },
   deleteAccount: async (password?: string): Promise<void> => {
     await api.delete('/users/me', { data: { password } });
+  },
+};
+
+// Admin Panel API
+export const adminApi = {
+  getOverview: async (): Promise<AdminPlatformStats> => {
+    const { data } = await api.get<AdminPlatformStats>('/admin/overview');
+    return data;
+  },
+  updateUserRole: async (userId: number, is_admin: boolean): Promise<AdminUserSummary> => {
+    const { data } = await api.patch<AdminUserSummary>(`/admin/users/${userId}/role`, { is_admin });
+    return data;
   },
 };

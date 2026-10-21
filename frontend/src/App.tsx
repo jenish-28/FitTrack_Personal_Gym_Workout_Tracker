@@ -11,6 +11,7 @@ import { HistoryPage } from './pages/HistoryPage';
 import { ProgressPage } from './pages/ProgressPage';
 import { RecordsPage } from './pages/RecordsPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { AdminPage } from './pages/AdminPage';
 
 const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
   const { user, loading } = useAuth();
@@ -52,6 +53,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="progress" element={<ProgressPage />} />
         <Route path="records" element={<RecordsPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="admin" element={<AdminPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

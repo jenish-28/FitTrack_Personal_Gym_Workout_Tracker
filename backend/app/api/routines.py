@@ -49,11 +49,12 @@ def create_routine(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    make_template = bool(payload.is_template and current_user.is_admin)
     routine = WorkoutRoutine(
-        user_id=current_user.id,
+        user_id=None if make_template else current_user.id,
         name=payload.name.strip(),
         description=payload.description,
-        is_template=False,
+        is_template=make_template,
     )
     db.add(routine)
     db.flush()
@@ -111,10 +112,15 @@ def update_routine(
     routine = db.query(WorkoutRoutine).filter(WorkoutRoutine.id == routine_id).first()
     if not routine:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Routine not found.")
-    if routine.is_template or routine.user_id != current_user.id:
+    if routine.is_template and not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only edit your own custom routines. Duplicate a starter template to customize it.",
+        )
+    if not routine.is_template and routine.user_id != current_user.id and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only edit your own custom routines.",
         )
 
     if payload.name is not None:
@@ -162,7 +168,12 @@ def delete_routine(
     routine = db.query(WorkoutRoutine).filter(WorkoutRoutine.id == routine_id).first()
     if not routine:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Routine not found.")
-    if routine.is_template or routine.user_id != current_user.id:
+    if routine.is_template and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only delete your own custom routines.",
+        )
+    if not routine.is_template and routine.user_id != current_user.id and not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only delete your own custom routines.",

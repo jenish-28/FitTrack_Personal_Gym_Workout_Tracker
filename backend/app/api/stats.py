@@ -222,7 +222,7 @@ def get_dashboard_stats(
             )
         )
         .order_by(WorkoutRoutine.is_template.asc(), WorkoutRoutine.updated_at.desc())
-        .limit(8)
+        .limit(30)
         .all()
     )
 

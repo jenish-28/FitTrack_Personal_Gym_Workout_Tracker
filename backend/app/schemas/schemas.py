@@ -40,6 +40,7 @@ class UserOut(BaseModel):
     name: str
     bio: Optional[str] = None
     avatar_url: Optional[str] = None
+    is_admin: bool = False
     created_at: datetime
     settings: UserSettingsOut
 
@@ -94,6 +95,7 @@ class ExerciseCreate(BaseModel):
     tracking_type: TrackingTypeLiteral = "weight_reps"
     instructions: Optional[str] = Field(default=None, max_length=2000)
     media_url: Optional[str] = Field(default=None, max_length=500)
+    is_system: Optional[bool] = False
 
     @field_validator("name", "primary_muscle", "equipment", "category")
     @classmethod
@@ -187,6 +189,7 @@ class RoutineExerciseOut(BaseModel):
 class RoutineCreate(BaseModel):
     name: str = Field(..., min_length=2, max_length=150)
     description: Optional[str] = Field(default=None, max_length=1000)
+    is_template: Optional[bool] = False
     exercises: List[RoutineExerciseInput] = Field(default_factory=list)
 
 
@@ -406,3 +409,36 @@ class AnalyticsOverviewOut(BaseModel):
     total_sets_completed: int
     total_volume_kg: float
     total_workouts: int
+
+
+# -----------------------
+# Admin Panel Schemas
+# -----------------------
+class AdminUserSummaryOut(BaseModel):
+    id: int
+    name: str
+    email: str
+    is_admin: bool
+    created_at: datetime
+    workouts_completed: int
+    total_volume_kg: float
+    routines_count: int
+    custom_exercises_count: int
+    prs_count: int
+
+
+class AdminPlatformStatsOut(BaseModel):
+    total_users: int
+    total_completed_workouts: int
+    total_sets_logged: int
+    total_volume_kg: float
+    system_exercises_count: int
+    custom_exercises_count: int
+    template_routines_count: int
+    custom_routines_count: int
+    users: List[AdminUserSummaryOut]
+
+
+class AdminRoleUpdateRequest(BaseModel):
+    is_admin: bool
+

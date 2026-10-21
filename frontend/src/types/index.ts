@@ -20,6 +20,7 @@ export interface User {
   name: string;
   bio?: string | null;
   avatar_url?: string | null;
+  is_admin?: boolean;
   created_at: string;
   settings: UserSettings;
 }
@@ -58,6 +59,7 @@ export interface ExerciseCreateInput {
   tracking_type: TrackingType;
   instructions?: string;
   media_url?: string;
+  is_system?: boolean;
 }
 
 export interface ExerciseUpdateInput {
@@ -249,4 +251,29 @@ export interface AnalyticsOverview {
   total_sets_completed: number;
   total_volume_kg: number;
   total_workouts: number;
+}
+
+export interface AdminUserSummary {
+  id: number;
+  name: string;
+  email: string;
+  is_admin: boolean;
+  created_at: string;
+  workouts_completed: number;
+  total_volume_kg: number;
+  routines_count: number;
+  custom_exercises_count: number;
+  prs_count: number;
+}
+
+export interface AdminPlatformStats {
+  total_users: number;
+  total_completed_workouts: number;
+  total_sets_logged: number;
+  total_volume_kg: number;
+  system_exercises_count: number;
+  custom_exercises_count: number;
+  template_routines_count: number;
+  custom_routines_count: number;
+  users: AdminUserSummary[];
 }
