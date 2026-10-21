@@ -196,3 +196,7 @@ npm test
 ## License
 
 No license file or license declaration has been confirmed for this project. Unless a license is added, reuse and redistribution are subject to the repository owner's rights.
+
+## Owner
+
+Jenish Patel
