@@ -29,13 +29,17 @@ const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }
 };
 
 export const AppRoutes: React.FC = () => {
-  const { user, loading } = useAuth();
+  const { loading } = useAuth();
 
   return (
     <Routes>
       <Route
         path="/login"
-        element={!loading && user ? <Navigate to="/" replace /> : <AuthPage />}
+        element={loading ? (
+          <div className="min-h-screen flex items-center justify-center bg-charcoal-950 text-slate-300 text-sm">
+            Loading FitTrack...
+          </div>
+        ) : <AuthPage />}
       />
       <Route
         path="/"
