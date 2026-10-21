@@ -1,28 +1,36 @@
 # FitTrack — Personal Gym & Workout Tracker
 
-FitTrack is a full-stack gym and workout tracking web application for planning routines, logging training sessions, managing exercises, and reviewing strength and workout progress over time.
+FitTrack is a full-stack gym and workout tracking web application for planning routines, recording training sessions, managing exercises, and monitoring strength and workout progress.
 
 ## Live Demo
 
-**[Open FitTrack](https://fittrack-app-vx8f.onrender.com)**
+**[Open FitTrack — Login Page](https://fittrack-app-vx8f.onrender.com/login)**
 
-- **Source code:** [FitTrack on GitHub](https://github.com/jenish-28/FitTrack_Personal_Gym_Workout_Tracker)
-- **API health check:** [Check API status](https://fittrack-app-vx8f.onrender.com/api/health)
-- **API documentation (local development):** `/docs` on the backend server
+- **GitHub source code:** [jenish-28/FitTrack_Personal_Gym_Workout_Tracker](https://github.com/jenish-28/FitTrack_Personal_Gym_Workout_Tracker)
+
+The live application opens at the sign-in page. Users can sign in with an existing account or create a new account. Access to protected features requires authentication.
+
+## Account Roles
+
+FitTrack supports two account roles:
+
+- **User:** Manage personal workouts, exercises, routines, workout history, progress analytics, personal records, and profile settings.
+- **Administrator:** Access a separate, role-protected administration area for reviewing platform statistics and managing user roles.
+
+Administrator access is restricted to authorized accounts. This README intentionally does not publish administrator credentials, login details, or instructions for obtaining elevated access.
 
 ## Features
 
 ### Dashboard
-- Review completed workouts, weekly progress, training volume, and workout streaks.
-- See recent sessions, personal records, and favorite exercises.
-- Explore training-volume trends and quickly start a saved routine.
+- Review completed workouts, weekly progress, training volume, workout streaks, recent sessions, and personal records.
+- View training-volume trends and quickly start a saved routine.
 
 ### Workout Tracking
-- Start a freestyle session or use a saved routine or starter template.
+- Start a freestyle workout or use a saved routine or starter template.
 - Log exercises by weight and reps, reps only, duration, or distance and time.
 - Record warm-up, working, dropset, and failure sets.
-- See previous performance while logging sets.
-- Use automatic session saving and a built-in rest timer with pause, resume, skip, and time adjustments.
+- View previous performance while logging sets.
+- Use automatic session saving and a rest timer with pause, resume, skip, and time adjustments.
 - Switch between kilograms (KG) and pounds (LBS).
 - Review workout summaries including duration, sets, volume, and new personal records.
 
@@ -43,10 +51,15 @@ FitTrack is a full-stack gym and workout tracking web application for planning r
 - Detect personal records for weight, estimated 1RM, reps, duration, and distance.
 
 ### Profile & Settings
-- Manage your display name, email, training bio, and avatar URL.
+- Manage display name, email, training bio, and avatar URL.
 - Set weekly workout goals and a default rest timer.
 - Choose KG/LBS and dark/light theme preferences.
-- Update your password or delete your account.
+- Update password or delete the account.
+
+### Administration
+- View platform-level statistics such as registered users, completed workouts, logged sets, training volume, exercises, and routines.
+- Review user summaries and manage account roles.
+- Administrative API endpoints are protected by server-side authorization checks.
 
 ## Tech Stack
 
@@ -78,13 +91,13 @@ Volume is calculated for completed working, dropset, and failure sets for weight
 Estimated 1RM = weight × (1 + reps / 30)
 ```
 
-The estimate is used for sets with more than one rep and is an estimate, not a guaranteed maximum lift.
+This is an estimate for sets with more than one rep, not a guaranteed maximum lift.
 
 ## Run Locally
 
 ### Prerequisites
 - Git
-- Python 3.10 or newer (compatible with the installed dependencies)
+- Python 3.10 or newer, compatible with the project dependencies
 - Node.js and npm
 - PostgreSQL
 
@@ -114,13 +127,13 @@ Activate the virtual environment:
 source .venv/bin/activate
 ```
 
-Install the Python dependencies:
+Install backend dependencies:
 
 ```bash
 python -m pip install -r requirements.txt
 ```
 
-Configure the backend environment for your local PostgreSQL database. At minimum, review the settings in the backend configuration and provide a valid `DATABASE_URL` and a strong `JWT_SECRET_KEY` as required by the application. Never commit real credentials or secret keys.
+Configure the backend for your local PostgreSQL database. Review the backend configuration and provide a valid `DATABASE_URL` and a strong `JWT_SECRET_KEY` as required by the application. Never commit real credentials or secret keys.
 
 Apply database migrations:
 
@@ -130,20 +143,20 @@ python -m alembic upgrade head
 
 ### 3. Start the backend
 
-From the `backend` directory, run:
+From the `backend` directory:
 
 ```bash
 python -m uvicorn app.main:app --reload
 ```
 
-The API will normally be available at [http://localhost:8000](http://localhost:8000).
+The API is normally available at [http://localhost:8000](http://localhost:8000).
 
-- Interactive API docs: [http://localhost:8000/docs](http://localhost:8000/docs)
-- Health check: [http://localhost:8000/api/health](http://localhost:8000/api/health)
+- API documentation: [http://localhost:8000/docs](http://localhost:8000/docs)
+- API health check: [http://localhost:8000/api/health](http://localhost:8000/api/health)
 
 ### 4. Start the frontend
 
-Open a second terminal from the project root:
+Open a second terminal from the repository root:
 
 ```bash
 cd frontend
@@ -151,11 +164,11 @@ npm install
 npm run dev
 ```
 
-Open the local URL shown by Vite (usually [http://localhost:5173](http://localhost:5173)). If the frontend needs a backend URL in your environment, configure it according to the frontend's environment settings.
+Open the local URL shown by Vite, usually [http://localhost:5173](http://localhost:5173). The app's login route is available at `/login`.
 
 ### Production deployment
 
-The repository includes a `render.yaml` Blueprint configuration for deploying the web service and PostgreSQL database on Render. Review the Blueprint and the environment variables before deploying. The deployed FastAPI app serves the built frontend from `frontend/dist`, so the frontend build and backend service are configured together.
+The repository includes a `render.yaml` Blueprint for deploying the web service and PostgreSQL database on Render. The deployment builds the frontend and serves the generated `frontend/dist` files through FastAPI. Review production environment variables and database settings before deploying.
 
 ## Tests & Quality Checks
 
@@ -172,15 +185,14 @@ npm run typecheck
 npm test
 ```
 
-The frontend scripts are defined in `frontend/package.json`. If a command is unavailable in your local checkout, check the available scripts and test configuration.
-
 ## Security Notes
 
-- Keep database credentials, JWT secrets, and other private configuration out of Git.
+- Never commit database credentials, JWT secrets, or other private configuration.
 - Use a strong, unique JWT secret in production.
-- Keep authentication and ownership checks in place when changing user or exercise data.
+- Keep authentication, role checks, and user-ownership checks enabled.
+- Administrator functionality should only be available to authorized accounts.
 - Use HTTPS for the deployed application.
 
 ## License
 
-No license file or license declaration has been confirmed for this project. Unless a license is added to the repository, reuse and redistribution are subject to the repository owner's rights.
+No license file or license declaration has been confirmed for this project. Unless a license is added, reuse and redistribution are subject to the repository owner's rights.
