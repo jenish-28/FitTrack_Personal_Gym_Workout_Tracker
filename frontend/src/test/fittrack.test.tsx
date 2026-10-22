@@ -176,4 +176,92 @@ describe('ExerciseLibraryPage CRUD, Taxonomy & Detail View UI Behavior', () => {
     fireEvent.click(screen.getByLabelText('Delete Custom Meadows Row'));
     expect(screen.getByText('Archive Custom Exercise?')).toBeInTheDocument();
   });
+
+  it('supports hierarchical muscle filtering: single-category expansion, parent/child selection, search, secondary-muscle matching, and clearing', async () => {
+    render(
+      <MemoryRouter>
+        <AuthProvider>
+          <ExerciseLibraryPage />
+        </AuthProvider>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Bench Press').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Custom Meadows Row').length).toBeGreaterThan(0);
+    });
+
+    const filterTrigger = screen.getByLabelText('Filter by muscle group');
+    expect(filterTrigger).toHaveTextContent('All Muscle Groups');
+
+    // 1. Open dropdown and verify top-level categories
+    fireEvent.click(filterTrigger);
+    expect(screen.getByLabelText('Search muscle groups')).toBeInTheDocument();
+    for (const cat of [
+      'Chest',
+      'Back',
+      'Shoulders',
+      'Arms',
+      'Core & Abs',
+      'Glutes & Hips',
+      'Legs',
+      'Neck',
+      'Full Body',
+      'Cardio',
+      'Mobility & Stretching',
+      'Other',
+    ]) {
+      expect(screen.getByRole('button', { name: cat })).toBeInTheDocument();
+    }
+
+    // 2. Click Chest -> expands Chest children
+    fireEvent.click(screen.getByRole('button', { name: 'Chest' }));
+    expect(screen.getByRole('option', { name: 'All Chest Muscles' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Pectoralis Major' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Upper Chest' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Middle Chest' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Lower Chest' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Pectoralis Minor' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Serratus Anterior' })).toBeInTheDocument();
+
+    // 3. Click Back -> collapses Chest and expands Back (only one category expanded at a time)
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.queryByRole('option', { name: 'All Chest Muscles' })).not.toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'All Back Muscles' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Latissimus Dorsi (Lats)' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Rhomboids' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Trapezius' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Erector Spinae' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Teres Major' })).toBeInTheDocument();
+
+    // 4. Select parent category Back ("All Back Muscles") -> filters exercises by Back & descendants
+    fireEvent.click(screen.getByRole('option', { name: 'All Back Muscles' }));
+    expect(filterTrigger).toHaveTextContent('Back');
+    expect(screen.getAllByText('Custom Meadows Row').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Bench Press')).not.toBeInTheDocument();
+
+    // 5. Reopen dropdown, search for a secondary muscle ("Anterior Deltoids"), auto-reveal Shoulders, and select it
+    fireEvent.click(filterTrigger);
+    const searchInput = screen.getByLabelText('Search muscle groups');
+    fireEvent.change(searchInput, { target: { value: 'Anterior Deltoids' } });
+    expect(screen.getByRole('option', { name: 'Anterior Deltoids' })).toBeInTheDocument();
+
+    // Test "No muscles found" message when searching non-existent term
+    fireEvent.change(searchInput, { target: { value: 'nonexistentmusclexyz' } });
+    expect(screen.getByText('No muscles found')).toBeInTheDocument();
+
+    // Search "Anterior Deltoids" and select child muscle -> matches Bench Press via secondary_muscles!
+    fireEvent.change(searchInput, { target: { value: 'Anterior Deltoids' } });
+    fireEvent.click(screen.getByRole('option', { name: 'Anterior Deltoids' }));
+    expect(filterTrigger).toHaveTextContent('Anterior Deltoids');
+    expect(screen.getAllByText('Bench Press').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Custom Meadows Row')).not.toBeInTheDocument();
+
+    // 6. Clear filter by selecting "All Muscle Groups" -> restores full list
+    fireEvent.click(filterTrigger);
+    fireEvent.click(screen.getByRole('option', { name: 'All Muscle Groups' }));
+    expect(filterTrigger).toHaveTextContent('All Muscle Groups');
+    expect(screen.getAllByText('Bench Press').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Custom Meadows Row').length).toBeGreaterThan(0);
+  });
 });

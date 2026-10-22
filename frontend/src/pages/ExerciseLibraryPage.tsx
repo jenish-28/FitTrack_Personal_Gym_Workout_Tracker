@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -52,6 +52,10 @@ import {
 } from '../utils/units';
 import { useAuth } from '../context/AuthContext';
 import { ExerciseMediaPreview, MuscleTargetDiagram } from '../components/ExerciseMediaPreview';
+import {
+  HierarchicalMuscleFilter,
+  matchesHierarchicalMuscleFilter,
+} from '../components/HierarchicalMuscleFilter';
 
 export const ExerciseLibraryPage: React.FC = () => {
   const { user, weightUnit, showToast } = useAuth();
@@ -102,7 +106,6 @@ export const ExerciseLibraryPage: React.FC = () => {
     try {
       const list = await exercisesApi.list({
         search: search.trim() || undefined,
-        muscle: selectedMuscle !== 'All' ? selectedMuscle : undefined,
         equipment: selectedEquipment !== 'All' ? selectedEquipment : undefined,
         tracking_type: selectedTracking !== 'All' ? selectedTracking : undefined,
         custom_only: customOnly || undefined,
@@ -113,7 +116,15 @@ export const ExerciseLibraryPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [search, selectedMuscle, selectedEquipment, selectedTracking, customOnly, showToast]);
+  }, [search, selectedEquipment, selectedTracking, customOnly, showToast]);
+
+  const filteredExercises = useMemo(
+    () =>
+      exercises.filter((ex) =>
+        matchesHierarchicalMuscleFilter(ex, selectedMuscle)
+      ),
+    [exercises, selectedMuscle]
+  );
 
   useEffect(() => {
     fetchExercises();
@@ -413,23 +424,10 @@ export const ExerciseLibraryPage: React.FC = () => {
             />
           </div>
 
-          <select
+          <HierarchicalMuscleFilter
             value={selectedMuscle}
-            onChange={(e) => setSelectedMuscle(e.target.value)}
-            aria-label="Filter by muscle group"
-            className="px-3 py-2 rounded-lg bg-slate-50 dark:bg-charcoal-950 border border-slate-200 dark:border-charcoal-700 text-sm focus:outline-none focus:border-lime-400"
-          >
-            <option value="All">All Muscle Groups</option>
-            {MUSCLE_GROUP_CATEGORIES.map((cat) => (
-              <optgroup key={cat.group} label={cat.group}>
-                {cat.options.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
+            onChange={setSelectedMuscle}
+          />
 
           <select
             value={selectedEquipment}
@@ -470,7 +468,7 @@ export const ExerciseLibraryPage: React.FC = () => {
             <span>Show Only My Custom Exercises</span>
           </label>
           <span className="text-xs text-slate-400 font-mono">
-            {exercises.length} {exercises.length === 1 ? 'exercise' : 'exercises'} found
+            {filteredExercises.length} {filteredExercises.length === 1 ? 'exercise' : 'exercises'} found
           </span>
         </div>
       </div>
@@ -485,7 +483,7 @@ export const ExerciseLibraryPage: React.FC = () => {
             />
           ))}
         </div>
-      ) : exercises.length === 0 ? (
+      ) : filteredExercises.length === 0 ? (
         <div className="rounded-xl bg-white dark:bg-charcoal-900 border border-slate-200 dark:border-charcoal-800 p-10 text-center space-y-3">
           <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
             No exercises match your current filters.
@@ -500,7 +498,7 @@ export const ExerciseLibraryPage: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {exercises.map((ex) => (
+          {filteredExercises.map((ex) => (
             <div
               key={ex.id}
               className="rounded-xl bg-white dark:bg-charcoal-900 border border-slate-200 dark:border-charcoal-800 p-4 flex flex-col justify-between hover:border-lime-400/40 transition-colors"
