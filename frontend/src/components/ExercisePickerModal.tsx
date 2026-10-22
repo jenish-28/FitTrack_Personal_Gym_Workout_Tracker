@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { Search, Plus, X, Check } from 'lucide-react';
 import { exercisesApi, extractErrorMessage } from '../api/client';
 import { Exercise, TrackingType } from '../types';
@@ -10,6 +10,10 @@ import {
 } from '../utils/units';
 import { useAuth } from '../context/AuthContext';
 import { ExerciseMediaPreview } from './ExerciseMediaPreview';
+import {
+  HierarchicalMuscleFilter,
+  matchesHierarchicalMuscleFilter,
+} from './HierarchicalMuscleFilter';
 
 interface ExercisePickerModalProps {
   open: boolean;
@@ -42,7 +46,6 @@ export const ExercisePickerModal: React.FC<ExercisePickerModalProps> = ({
     try {
       const list = await exercisesApi.list({
         search: search.trim() || undefined,
-        muscle: muscle !== 'All' ? muscle : undefined,
       });
       setExercises(list);
     } catch (err) {
@@ -50,11 +53,19 @@ export const ExercisePickerModal: React.FC<ExercisePickerModalProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [open, search, muscle, showToast]);
+  }, [open, search, showToast]);
 
   useEffect(() => {
     loadExercises();
   }, [loadExercises]);
+
+  const filteredExercises = useMemo(
+    () =>
+      exercises.filter((ex) =>
+        matchesHierarchicalMuscleFilter(ex, muscle)
+      ),
+    [exercises, muscle]
+  );
 
   if (!open) return null;
 
@@ -213,29 +224,18 @@ export const ExercisePickerModal: React.FC<ExercisePickerModalProps> = ({
                   className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-50 dark:bg-charcoal-950 border border-slate-200 dark:border-charcoal-700 text-xs sm:text-sm focus:outline-none focus:border-lime-400"
                 />
               </div>
-              <select
+              <HierarchicalMuscleFilter
                 value={muscle}
-                onChange={(e) => setMuscle(e.target.value)}
-                aria-label="Filter picker by muscle group"
-                className="px-3 py-2 rounded-lg bg-slate-50 dark:bg-charcoal-950 border border-slate-200 dark:border-charcoal-700 text-xs sm:text-sm"
-              >
-                <option value="All">All Muscles</option>
-                {MUSCLE_GROUP_CATEGORIES.map((cat) => (
-                  <optgroup key={cat.group} label={cat.group}>
-                    {cat.options.map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
+                onChange={setMuscle}
+                ariaLabel="Filter picker by muscle group"
+                align="right"
+              />
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-2 pr-1">
               {loading ? (
                 <p className="text-center py-8 text-xs text-slate-400">Loading exercises...</p>
-              ) : exercises.length === 0 ? (
+              ) : filteredExercises.length === 0 ? (
                 <div className="text-center py-8 space-y-2">
                   <p className="text-xs text-slate-400">No matching exercises found.</p>
                   <button
@@ -250,7 +250,7 @@ export const ExercisePickerModal: React.FC<ExercisePickerModalProps> = ({
                   </button>
                 </div>
               ) : (
-                exercises.map((ex) => (
+                filteredExercises.map((ex) => (
                   <button
                     key={ex.id}
                     type="button"

@@ -534,11 +534,15 @@ export function matchesHierarchicalMuscleFilter(
 interface HierarchicalMuscleFilterProps {
   value: string;
   onChange: (value: string) => void;
+  ariaLabel?: string;
+  align?: 'left' | 'right';
 }
 
 export const HierarchicalMuscleFilter: React.FC<HierarchicalMuscleFilterProps> = ({
   value,
   onChange,
+  ariaLabel = 'Filter by muscle group',
+  align = 'left',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -706,7 +710,7 @@ export const HierarchicalMuscleFilter: React.FC<HierarchicalMuscleFilterProps> =
         ref={triggerRef}
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        aria-label="Filter by muscle group"
+        aria-label={ariaLabel}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         className={`w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-charcoal-950 border text-sm flex items-center justify-between gap-2 text-left transition-colors focus:outline-none focus:border-lime-400 ${
@@ -728,7 +732,11 @@ export const HierarchicalMuscleFilter: React.FC<HierarchicalMuscleFilterProps> =
         <div
           role="listbox"
           aria-label="Muscle group options"
-          className="absolute left-0 right-0 sm:min-w-[290px] max-w-[calc(100vw-2rem)] mt-1.5 z-40 rounded-xl bg-white dark:bg-charcoal-900 border border-slate-200 dark:border-charcoal-700 shadow-2xl overflow-hidden"
+          className={`absolute ${
+            align === 'right'
+              ? 'left-0 right-0 sm:left-auto sm:right-0'
+              : 'left-0 right-0 sm:right-auto'
+          } sm:min-w-[290px] max-w-[calc(100vw-2rem)] mt-1.5 z-40 rounded-xl bg-white dark:bg-charcoal-900 border border-slate-200 dark:border-charcoal-700 shadow-2xl overflow-hidden`}
         >
           {/* Sticky Search Input */}
           <div className="p-2 border-b border-slate-200 dark:border-charcoal-800 bg-slate-50/70 dark:bg-charcoal-950/80">

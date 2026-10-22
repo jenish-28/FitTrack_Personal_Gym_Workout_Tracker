@@ -20,6 +20,7 @@ import {
   MUSCLE_GROUP_CATEGORIES,
 } from '../utils/units';
 import { ExerciseLibraryPage } from '../pages/ExerciseLibraryPage';
+import { RoutinesPage } from '../pages/RoutinesPage';
 import { AuthProvider } from '../context/AuthContext';
 import * as apiClient from '../api/client';
 
@@ -263,5 +264,55 @@ describe('ExerciseLibraryPage CRUD, Taxonomy & Detail View UI Behavior', () => {
     expect(filterTrigger).toHaveTextContent('All Muscle Groups');
     expect(screen.getAllByText('Bench Press').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Custom Meadows Row').length).toBeGreaterThan(0);
+  });
+
+  it('uses the same unified hierarchical muscle selector inside the Routines Add Exercise picker', async () => {
+    vi.spyOn(apiClient.routinesApi, 'list').mockResolvedValue([]);
+
+    render(
+      <MemoryRouter>
+        <AuthProvider>
+          <RoutinesPage />
+        </AuthProvider>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /New Custom Routine/i })).toBeInTheDocument();
+    });
+
+    // Open Create Workout Routine modal, then open Add Exercise picker
+    fireEvent.click(screen.getByRole('button', { name: /New Custom Routine/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Add Exercise/i }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Bench Press').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Custom Meadows Row').length).toBeGreaterThan(0);
+    });
+
+    const pickerFilter = screen.getByLabelText('Filter picker by muscle group');
+    expect(pickerFilter).toHaveTextContent('All Muscle Groups');
+
+    // Open hierarchical dropdown in Routines picker and expand Back
+    fireEvent.click(pickerFilter);
+    expect(screen.getByLabelText('Search muscle groups')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByRole('option', { name: 'All Back Muscles' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Latissimus Dorsi (Lats)' })).toBeInTheDocument();
+
+    // Select specific child muscle "Latissimus Dorsi (Lats)"
+    fireEvent.click(screen.getByRole('option', { name: 'Latissimus Dorsi (Lats)' }));
+    expect(pickerFilter).toHaveTextContent('Latissimus Dorsi (Lats)');
+    expect(screen.getAllByText('Custom Meadows Row').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Bench Press')).not.toBeInTheDocument();
+
+    // Clear filter in picker and select an exercise to add to the routine
+    fireEvent.click(pickerFilter);
+    fireEvent.click(screen.getByRole('option', { name: 'All Muscle Groups' }));
+    expect(pickerFilter).toHaveTextContent('All Muscle Groups');
+    expect(screen.getAllByText('Bench Press').length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getAllByText('Bench Press')[0]);
+    expect(screen.getByText(/1\. Bench Press/i)).toBeInTheDocument();
   });
 });
