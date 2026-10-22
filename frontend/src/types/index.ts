@@ -39,6 +39,7 @@ export interface Exercise {
   secondary_muscles: string[];
   equipment: string;
   category: string;
+  difficulty_level?: string | null;
   tracking_type: TrackingType;
   instructions?: string | null;
   media_url?: string | null;
@@ -56,6 +57,7 @@ export interface ExerciseCreateInput {
   secondary_muscles?: string[];
   equipment: string;
   category?: string;
+  difficulty_level?: string;
   tracking_type: TrackingType;
   instructions?: string;
   media_url?: string;
@@ -68,6 +70,7 @@ export interface ExerciseUpdateInput {
   secondary_muscles?: string[];
   equipment?: string;
   category?: string;
+  difficulty_level?: string;
   tracking_type?: TrackingType;
   instructions?: string;
   media_url?: string;

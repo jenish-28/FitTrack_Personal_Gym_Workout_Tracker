@@ -12,6 +12,7 @@ from sqlalchemy import (
     UniqueConstraint,
     CheckConstraint,
     JSON,
+    LargeBinary,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
@@ -96,10 +97,13 @@ class Exercise(Base):
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
     )
     name: Mapped[str] = mapped_column(String(150), nullable=False, index=True)
-    primary_muscle: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
+    primary_muscle: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
     secondary_muscles: Mapped[List[str]] = mapped_column(JSON, default=list, nullable=False)
-    equipment: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
-    category: Mapped[str] = mapped_column(String(60), default="Strength", nullable=False)
+    equipment: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    category: Mapped[str] = mapped_column(String(100), default="Strength", nullable=False)
+    difficulty_level: Mapped[Optional[str]] = mapped_column(
+        String(40), default="Intermediate", server_default="Intermediate", nullable=True
+    )
     tracking_type: Mapped[str] = mapped_column(String(30), default="weight_reps", nullable=False)
     instructions: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     media_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
@@ -111,6 +115,23 @@ class Exercise(Base):
     )
 
     owner: Mapped[Optional["User"]] = relationship("User", back_populates="custom_exercises")
+
+
+class ExerciseMedia(Base):
+    __tablename__ = "exercise_media"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    exercise_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("exercises.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(80), nullable=False)
+    file_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
 
 
 class ExerciseFavorite(Base):
@@ -232,8 +253,8 @@ class WorkoutExercise(Base):
     )
     exercise_name_snapshot: Mapped[str] = mapped_column(String(150), nullable=False)
     tracking_type_snapshot: Mapped[str] = mapped_column(String(30), default="weight_reps", nullable=False)
-    primary_muscle_snapshot: Mapped[str] = mapped_column(String(60), default="Full Body", nullable=False)
-    equipment_snapshot: Mapped[str] = mapped_column(String(60), default="Other", nullable=False)
+    primary_muscle_snapshot: Mapped[str] = mapped_column(String(120), default="Full Body", nullable=False)
+    equipment_snapshot: Mapped[str] = mapped_column(String(100), default="Other", nullable=False)
     order_index: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     rest_seconds: Mapped[int] = mapped_column(Integer, default=90, nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

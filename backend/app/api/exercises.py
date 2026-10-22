@@ -1,12 +1,14 @@
+from pathlib import Path
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import or_, func
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
+from sqlalchemy import or_, func, cast, String
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import (
     User,
     Exercise,
+    ExerciseMedia,
     ExerciseFavorite,
     WorkoutExercise,
     RoutineExercise,
@@ -21,8 +23,49 @@ from app.schemas.schemas import (
 )
 from app.core.security import get_current_user
 from app.services.seed import seed_initial_data
+from app.services.exercise_catalog import MUSCLE_FAMILY_ALIASES
 
 router = APIRouter(prefix="/api/exercises", tags=["Exercises"])
+
+MAX_UPLOAD_BYTES = 8 * 1024 * 1024  # 8 MB limit
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+ALLOWED_MIME_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+UPLOADS_DIR = Path(__file__).resolve().parent.parent.parent / "uploads" / "exercises"
+
+
+def _detect_image_mime(data: bytes) -> Optional[str]:
+    """Inspect magic bytes of uploaded file content to verify it is a genuine image or GIF."""
+    if len(data) < 12:
+        return None
+    if data.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if data.startswith(b"GIF87a") or data.startswith(b"GIF89a"):
+        return "image/gif"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
+def _cleanup_exercise_media(db: Session, exercise_id: int) -> None:
+    """Safely delete uploaded media records owned by this exercise unless referenced elsewhere."""
+    media_rows = db.query(ExerciseMedia).filter(ExerciseMedia.exercise_id == exercise_id).all()
+    for m in media_rows:
+        media_url_ref = f"/api/exercises/media/{m.id}"
+        other_refs = (
+            db.query(Exercise)
+            .filter(Exercise.id != exercise_id, Exercise.media_url == media_url_ref)
+            .count()
+        )
+        if other_refs == 0:
+            try:
+                disk_file = UPLOADS_DIR / f"{m.id}_{m.filename}"
+                if disk_file.exists():
+                    disk_file.unlink()
+            except Exception:
+                pass
+            db.delete(m)
 
 
 def _enrich_exercises(db: Session, exercises: List[Exercise], user_id: int) -> List[ExerciseOut]:
@@ -70,6 +113,26 @@ def _enrich_exercises(db: Session, exercises: List[Exercise], user_id: int) -> L
     return results
 
 
+@router.get("/media/{media_id}", tags=["Exercise Media"])
+def serve_exercise_media(
+    media_id: int,
+    db: Session = Depends(get_db),
+):
+    """Serve persistent user-uploaded exercise demonstration image or GIF."""
+    media = db.query(ExerciseMedia).filter(ExerciseMedia.id == media_id).first()
+    if not media:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exercise media not found.")
+
+    return Response(
+        content=media.data,
+        media_type=media.content_type,
+        headers={
+            "Cache-Control": "public, max-age=86400",
+            "Content-Disposition": f'inline; filename="{media.filename}"',
+        },
+    )
+
+
 @router.get("", response_model=List[ExerciseOut])
 def list_exercises(
     search: Optional[str] = Query(default=None),
@@ -79,7 +142,7 @@ def list_exercises(
     tracking_type: Optional[str] = Query(default=None),
     custom_only: bool = Query(default=False),
     include_archived: bool = Query(default=False),
-    limit: int = Query(default=200, ge=1, le=500),
+    limit: int = Query(default=300, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -103,11 +166,30 @@ def list_exercises(
                 func.lower(Exercise.name).like(term),
                 func.lower(Exercise.primary_muscle).like(term),
                 func.lower(Exercise.equipment).like(term),
+                func.lower(Exercise.category).like(term),
+                func.lower(cast(Exercise.secondary_muscles, String)).like(term),
             )
         )
 
     if muscle and muscle.strip() and muscle.lower() != "all":
-        query = query.filter(func.lower(Exercise.primary_muscle) == muscle.strip().lower())
+        m_lower = muscle.strip().lower()
+        family_matches = MUSCLE_FAMILY_ALIASES.get(m_lower)
+        if family_matches:
+            query = query.filter(
+                or_(
+                    func.lower(Exercise.primary_muscle).in_(family_matches),
+                    func.lower(Exercise.primary_muscle).like(f"%{m_lower}%"),
+                    func.lower(cast(Exercise.secondary_muscles, String)).like(f"%{m_lower}%"),
+                )
+            )
+        else:
+            query = query.filter(
+                or_(
+                    func.lower(Exercise.primary_muscle) == m_lower,
+                    func.lower(Exercise.primary_muscle).like(f"%{m_lower}%"),
+                    func.lower(cast(Exercise.secondary_muscles, String)).like(f"%{m_lower}%"),
+                )
+            )
 
     if equipment and equipment.strip() and equipment.lower() != "all":
         query = query.filter(func.lower(Exercise.equipment) == equipment.strip().lower())
@@ -170,6 +252,7 @@ def create_custom_exercise(
         archived_match.secondary_muscles = payload.secondary_muscles
         archived_match.equipment = payload.equipment.strip()
         archived_match.category = payload.category.strip()
+        archived_match.difficulty_level = (payload.difficulty_level or "Intermediate").strip()
         archived_match.tracking_type = payload.tracking_type
         archived_match.instructions = payload.instructions
         archived_match.media_url = payload.media_url
@@ -186,6 +269,7 @@ def create_custom_exercise(
         secondary_muscles=payload.secondary_muscles,
         equipment=payload.equipment.strip(),
         category=payload.category.strip(),
+        difficulty_level=(payload.difficulty_level or "Intermediate").strip(),
         tracking_type=payload.tracking_type,
         instructions=payload.instructions,
         media_url=payload.media_url,
@@ -270,13 +354,138 @@ def update_custom_exercise(
         ex.equipment = payload.equipment.strip()
     if payload.category is not None:
         ex.category = payload.category.strip()
+    if payload.difficulty_level is not None:
+        ex.difficulty_level = payload.difficulty_level.strip() or "Intermediate"
     if payload.tracking_type is not None:
         ex.tracking_type = payload.tracking_type
     if payload.instructions is not None:
         ex.instructions = payload.instructions
     if payload.media_url is not None:
-        ex.media_url = payload.media_url
+        if payload.media_url == "":
+            _cleanup_exercise_media(db, ex.id)
+            ex.media_url = None
+        else:
+            ex.media_url = payload.media_url
 
+    db.commit()
+    db.refresh(ex)
+    return _enrich_exercises(db, [ex], current_user.id)[0]
+
+
+@router.post("/{exercise_id}/media", response_model=ExerciseOut)
+async def upload_exercise_media(
+    exercise_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Upload or replace an exercise demonstration image or animated GIF.
+    Validates file extension, MIME type, size limit, and magic-byte file signature,
+    and stores a persistent media record in PostgreSQL.
+    """
+    ex = db.query(Exercise).filter(Exercise.id == exercise_id).first()
+    if not ex:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exercise not found.")
+
+    if ex.is_system and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="System exercises are protected. Only administrators can modify system exercise media.",
+        )
+
+    if not ex.is_system and ex.user_id != current_user.id and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only upload or modify media for your own custom exercises.",
+        )
+
+    original_filename = (file.filename or "exercise_media").strip()
+    ext = Path(original_filename).suffix.lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unsupported file format. Please upload a JPEG, PNG, WebP, or GIF file.",
+        )
+
+    raw_bytes = await file.read()
+    if not raw_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded file is empty.",
+        )
+
+    if len(raw_bytes) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="File size exceeds the 8 MB maximum upload limit.",
+        )
+
+    detected_mime = _detect_image_mime(raw_bytes)
+    if not detected_mime or detected_mime not in ALLOWED_MIME_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid image content. The file signature does not match a valid JPEG, PNG, WebP, or GIF.",
+        )
+
+    if file.content_type and file.content_type.lower() not in ALLOWED_MIME_TYPES and file.content_type != "application/octet-stream":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported content type '{file.content_type}'. Allowed types: JPEG, PNG, WebP, GIF.",
+        )
+
+    # Remove previous uploaded media for this exercise safely
+    _cleanup_exercise_media(db, ex.id)
+
+    safe_filename = "".join(c for c in Path(original_filename).name if c.isalnum() or c in "._-")[:120] or f"media{ext}"
+    media_row = ExerciseMedia(
+        exercise_id=ex.id,
+        user_id=current_user.id,
+        filename=safe_filename,
+        content_type=detected_mime,
+        file_size=len(raw_bytes),
+        data=raw_bytes,
+    )
+    db.add(media_row)
+    db.flush()
+
+    try:
+        UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+        (UPLOADS_DIR / f"{media_row.id}_{safe_filename}").write_bytes(raw_bytes)
+    except Exception:
+        pass
+
+    ex.media_url = f"/api/exercises/media/{media_row.id}"
+    db.commit()
+    db.refresh(ex)
+    return _enrich_exercises(db, [ex], current_user.id)[0]
+
+
+@router.delete("/{exercise_id}/media", response_model=ExerciseOut)
+def delete_exercise_media(
+    exercise_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Remove uploaded demonstration media from an exercise owned by the current user."""
+    ex = db.query(Exercise).filter(Exercise.id == exercise_id).first()
+    if not ex:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exercise not found.")
+
+    if ex.is_system and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="System exercises are protected and cannot be modified.",
+        )
+
+    if not ex.is_system and ex.user_id != current_user.id and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only remove media from your own custom exercises.",
+        )
+
+    _cleanup_exercise_media(db, ex.id)
+    ex.media_url = None
     db.commit()
     db.refresh(ex)
     return _enrich_exercises(db, [ex], current_user.id)[0]
@@ -342,6 +551,7 @@ def delete_or_archive_custom_exercise(
             exercise_id=ex.id,
         )
 
+    _cleanup_exercise_media(db, ex.id)
     ex_id = ex.id
     ex_name = ex.name
     db.delete(ex)

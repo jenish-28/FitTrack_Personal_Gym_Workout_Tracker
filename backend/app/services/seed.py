@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List
+from typing import Dict
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -15,172 +15,8 @@ from app.models import (
 )
 from app.core.security import hash_password
 from app.services.workout_service import calculate_set_volume_kg, evaluate_and_record_prs_for_workout
+from app.services.exercise_catalog import COMPREHENSIVE_SYSTEM_EXERCISES as INITIAL_SYSTEM_EXERCISES
 
-
-INITIAL_SYSTEM_EXERCISES = [
-    {
-        "name": "Bench Press",
-        "primary_muscle": "Chest",
-        "secondary_muscles": ["Triceps", "Shoulders"],
-        "equipment": "Barbell",
-        "category": "Strength",
-        "tracking_type": "weight_reps",
-        "instructions": "Lie flat on a bench, grip the barbell slightly wider than shoulder-width, lower under control to mid-chest, and press up explosively.",
-    },
-    {
-        "name": "Incline Dumbbell Press",
-        "primary_muscle": "Chest",
-        "secondary_muscles": ["Shoulders", "Triceps"],
-        "equipment": "Dumbbell",
-        "category": "Hypertrophy",
-        "tracking_type": "weight_reps",
-        "instructions": "Set bench to a 30-degree incline. Press dumbbells overhead while keeping shoulder blades retracted.",
-    },
-    {
-        "name": "Chest Fly",
-        "primary_muscle": "Chest",
-        "secondary_muscles": ["Shoulders"],
-        "equipment": "Cable",
-        "category": "Hypertrophy",
-        "tracking_type": "weight_reps",
-        "instructions": "Keep a slight bend in your elbows and bring handles together in a wide arc in front of your chest.",
-    },
-    {
-        "name": "Lat Pulldown",
-        "primary_muscle": "Back",
-        "secondary_muscles": ["Biceps", "Forearms"],
-        "equipment": "Cable",
-        "category": "Hypertrophy",
-        "tracking_type": "weight_reps",
-        "instructions": "Grip the bar wider than shoulder width, lean back slightly, and pull the bar down to your upper chest.",
-    },
-    {
-        "name": "Seated Cable Row",
-        "primary_muscle": "Back",
-        "secondary_muscles": ["Biceps", "Shoulders"],
-        "equipment": "Cable",
-        "category": "Strength",
-        "tracking_type": "weight_reps",
-        "instructions": "Sit tall with knees slightly bent, pull the handle toward your lower ribcage, and squeeze shoulder blades together.",
-    },
-    {
-        "name": "Pull-Up",
-        "primary_muscle": "Back",
-        "secondary_muscles": ["Biceps", "Core"],
-        "equipment": "Bodyweight",
-        "category": "Bodyweight",
-        "tracking_type": "reps_only",
-        "instructions": "Hang from a pull-up bar with an overhand grip and pull your body up until your chin clears the bar.",
-    },
-    {
-        "name": "Shoulder Press",
-        "primary_muscle": "Shoulders",
-        "secondary_muscles": ["Triceps", "Core"],
-        "equipment": "Dumbbell",
-        "category": "Strength",
-        "tracking_type": "weight_reps",
-        "instructions": "Press dumbbells from shoulder height directly overhead without arching your lower back.",
-    },
-    {
-        "name": "Lateral Raise",
-        "primary_muscle": "Shoulders",
-        "secondary_muscles": ["Forearms"],
-        "equipment": "Dumbbell",
-        "category": "Hypertrophy",
-        "tracking_type": "weight_reps",
-        "instructions": "Raise dumbbells out to your sides until arms are parallel to the floor, leading with your elbows.",
-    },
-    {
-        "name": "Barbell Curl",
-        "primary_muscle": "Biceps",
-        "secondary_muscles": ["Forearms"],
-        "equipment": "Barbell",
-        "category": "Hypertrophy",
-        "tracking_type": "weight_reps",
-        "instructions": "Stand tall and curl the barbell upward while keeping your elbows pinned to your sides.",
-    },
-    {
-        "name": "Triceps Pushdown",
-        "primary_muscle": "Triceps",
-        "secondary_muscles": ["Forearms"],
-        "equipment": "Cable",
-        "category": "Hypertrophy",
-        "tracking_type": "weight_reps",
-        "instructions": "Keep elbows tucked at your sides and extend your forearms downward until arms are fully straight.",
-    },
-    {
-        "name": "Squat",
-        "primary_muscle": "Quadriceps",
-        "secondary_muscles": ["Glutes", "Hamstrings", "Core"],
-        "equipment": "Barbell",
-        "category": "Strength",
-        "tracking_type": "weight_reps",
-        "instructions": "Brace your core, descend by sitting hips back and bending knees until thighs are at least parallel, then drive up.",
-    },
-    {
-        "name": "Leg Press",
-        "primary_muscle": "Quadriceps",
-        "secondary_muscles": ["Glutes", "Hamstrings"],
-        "equipment": "Machine",
-        "category": "Strength",
-        "tracking_type": "weight_reps",
-        "instructions": "Place feet hip-width apart on the sled, lower until knees reach 90 degrees, and press back up without locking knees.",
-    },
-    {
-        "name": "Romanian Deadlift",
-        "primary_muscle": "Hamstrings",
-        "secondary_muscles": ["Glutes", "Back"],
-        "equipment": "Barbell",
-        "category": "Strength",
-        "tracking_type": "weight_reps",
-        "instructions": "Keep knees slightly bent and hinge at the hips, lowering the barbell along your shins until you feel a deep hamstring stretch.",
-    },
-    {
-        "name": "Leg Curl",
-        "primary_muscle": "Hamstrings",
-        "secondary_muscles": ["Calves"],
-        "equipment": "Machine",
-        "category": "Hypertrophy",
-        "tracking_type": "weight_reps",
-        "instructions": "Curl the pad toward your glutes while keeping your hips pressed firmly into the bench.",
-    },
-    {
-        "name": "Calf Raise",
-        "primary_muscle": "Calves",
-        "secondary_muscles": [],
-        "equipment": "Machine",
-        "category": "Hypertrophy",
-        "tracking_type": "weight_reps",
-        "instructions": "Lower heels for a full stretch at the bottom, then drive up onto the balls of your feet and pause at the top.",
-    },
-    {
-        "name": "Plank",
-        "primary_muscle": "Core",
-        "secondary_muscles": ["Shoulders", "Glutes"],
-        "equipment": "Bodyweight",
-        "category": "Core",
-        "tracking_type": "duration",
-        "instructions": "Support your body on forearms and toes, keeping a straight line from head to heels with core braced.",
-    },
-    {
-        "name": "Crunches",
-        "primary_muscle": "Core",
-        "secondary_muscles": [],
-        "equipment": "Bodyweight",
-        "category": "Core",
-        "tracking_type": "reps_only",
-        "instructions": "Lie on your back with knees bent and curl your upper spine off the floor by contracting your abs.",
-    },
-    {
-        "name": "Treadmill Run",
-        "primary_muscle": "Cardio",
-        "secondary_muscles": ["Quadriceps", "Calves"],
-        "equipment": "Machine",
-        "category": "Cardio",
-        "tracking_type": "distance",
-        "instructions": "Maintain a steady pace and upright posture while tracking total distance covered and duration.",
-    },
-]
 
 STARTER_ROUTINE_TEMPLATES = [
     {
@@ -273,14 +109,29 @@ def seed_initial_data(db: Session) -> None:
                 secondary_muscles=item["secondary_muscles"],
                 equipment=item["equipment"],
                 category=item["category"],
+                difficulty_level=item.get("difficulty_level", "Intermediate"),
                 tracking_type=item["tracking_type"],
                 instructions=item["instructions"],
+                media_url=item.get("media_url"),
                 is_system=True,
                 is_archived=False,
             )
             db.add(ex)
             db.flush()
             existing_by_name[key] = ex
+        else:
+            existing_ex = existing_by_name[key]
+            # Non-destructively backfill demonstration media, difficulty_level, and enriched instructions
+            if not existing_ex.media_url and item.get("media_url"):
+                existing_ex.media_url = item["media_url"]
+            if not existing_ex.difficulty_level and item.get("difficulty_level"):
+                existing_ex.difficulty_level = item["difficulty_level"]
+            if (
+                existing_ex.instructions
+                and len(existing_ex.instructions) < 220
+                and item.get("instructions")
+            ):
+                existing_ex.instructions = item["instructions"]
 
     existing_templates = (
         db.query(WorkoutRoutine)
@@ -387,6 +238,7 @@ def ensure_demo_user(db: Session) -> User:
         secondary_muscles=["Triceps", "Shoulders"],
         equipment="Barbell",
         category="Strength",
+        difficulty_level="Intermediate",
         tracking_type="weight_reps",
         instructions="Pause the barbell for 2 full seconds on the chest before pressing.",
         is_system=False,

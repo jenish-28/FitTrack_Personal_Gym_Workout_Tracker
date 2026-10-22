@@ -116,6 +116,20 @@ export const exercisesApi = {
     const { data } = await api.post<{ is_favorite: boolean }>(`/exercises/${id}/favorite`);
     return data;
   },
+  uploadMedia: async (id: number, file: File): Promise<Exercise> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const { data } = await api.post<Exercise>(`/exercises/${id}/media`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return data;
+  },
+  deleteMedia: async (id: number): Promise<Exercise> => {
+    const { data } = await api.delete<Exercise>(`/exercises/${id}/media`);
+    return data;
+  },
 };
 
 // Routines API

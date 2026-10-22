@@ -88,12 +88,13 @@ class DeleteAccountRequest(BaseModel):
 # -----------------------
 class ExerciseCreate(BaseModel):
     name: str = Field(..., min_length=2, max_length=150)
-    primary_muscle: str = Field(..., min_length=2, max_length=60)
+    primary_muscle: str = Field(..., min_length=2, max_length=120)
     secondary_muscles: List[str] = Field(default_factory=list)
-    equipment: str = Field(..., min_length=2, max_length=60)
-    category: str = Field(default="Strength", min_length=2, max_length=60)
+    equipment: str = Field(..., min_length=2, max_length=100)
+    category: str = Field(default="Strength", min_length=2, max_length=100)
+    difficulty_level: Optional[str] = Field(default="Intermediate", max_length=40)
     tracking_type: TrackingTypeLiteral = "weight_reps"
-    instructions: Optional[str] = Field(default=None, max_length=2000)
+    instructions: Optional[str] = Field(default=None, max_length=4000)
     media_url: Optional[str] = Field(default=None, max_length=500)
     is_system: Optional[bool] = False
 
@@ -105,15 +106,28 @@ class ExerciseCreate(BaseModel):
             raise ValueError("Field cannot be empty or whitespace.")
         return val
 
+    @field_validator("media_url")
+    @classmethod
+    def validate_media_url(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        cleaned = v.strip()
+        if not cleaned:
+            return None
+        if cleaned.lower().startswith("blob:"):
+            raise ValueError("Temporary browser blob URLs cannot be stored as permanent media references.")
+        return cleaned
+
 
 class ExerciseUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=2, max_length=150)
-    primary_muscle: Optional[str] = Field(default=None, min_length=2, max_length=60)
+    primary_muscle: Optional[str] = Field(default=None, min_length=2, max_length=120)
     secondary_muscles: Optional[List[str]] = None
-    equipment: Optional[str] = Field(default=None, min_length=2, max_length=60)
-    category: Optional[str] = Field(default=None, min_length=2, max_length=60)
+    equipment: Optional[str] = Field(default=None, min_length=2, max_length=100)
+    category: Optional[str] = Field(default=None, min_length=2, max_length=100)
+    difficulty_level: Optional[str] = Field(default=None, max_length=40)
     tracking_type: Optional[TrackingTypeLiteral] = None
-    instructions: Optional[str] = Field(default=None, max_length=2000)
+    instructions: Optional[str] = Field(default=None, max_length=4000)
     media_url: Optional[str] = Field(default=None, max_length=500)
 
     @field_validator("name", "primary_muscle", "equipment", "category")
@@ -126,6 +140,16 @@ class ExerciseUpdate(BaseModel):
             raise ValueError("Field must contain at least 2 non-whitespace characters.")
         return val
 
+    @field_validator("media_url")
+    @classmethod
+    def validate_media_url(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        cleaned = v.strip()
+        if cleaned.lower().startswith("blob:"):
+            raise ValueError("Temporary browser blob URLs cannot be stored as permanent media references.")
+        return cleaned
+
 
 class ExerciseOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -137,6 +161,7 @@ class ExerciseOut(BaseModel):
     secondary_muscles: List[str]
     equipment: str
     category: str
+    difficulty_level: Optional[str] = "Intermediate"
     tracking_type: TrackingTypeLiteral
     instructions: Optional[str] = None
     media_url: Optional[str] = None
@@ -441,4 +466,3 @@ class AdminPlatformStatsOut(BaseModel):
 
 class AdminRoleUpdateRequest(BaseModel):
     is_admin: bool
-

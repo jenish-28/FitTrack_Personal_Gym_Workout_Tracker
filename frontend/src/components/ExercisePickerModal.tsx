@@ -2,8 +2,14 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Search, Plus, X, Check } from 'lucide-react';
 import { exercisesApi, extractErrorMessage } from '../api/client';
 import { Exercise, TrackingType } from '../types';
-import { MUSCLE_GROUPS, EQUIPMENT_TYPES, TRACKING_TYPE_LABELS } from '../utils/units';
+import {
+  MUSCLE_GROUPS,
+  MUSCLE_GROUP_CATEGORIES,
+  EQUIPMENT_TYPES,
+  TRACKING_TYPE_LABELS,
+} from '../utils/units';
 import { useAuth } from '../context/AuthContext';
+import { ExerciseMediaPreview } from './ExerciseMediaPreview';
 
 interface ExercisePickerModalProps {
   open: boolean;
@@ -133,10 +139,14 @@ export const ExercisePickerModal: React.FC<ExercisePickerModalProps> = ({
                   onChange={(e) => setCustomMuscle(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-charcoal-950 border border-slate-200 dark:border-charcoal-700 text-sm"
                 >
-                  {MUSCLE_GROUPS.map((m) => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
+                  {MUSCLE_GROUP_CATEGORIES.map((cat) => (
+                    <optgroup key={cat.group} label={cat.group}>
+                      {cat.options.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
               </div>
@@ -199,20 +209,25 @@ export const ExercisePickerModal: React.FC<ExercisePickerModalProps> = ({
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search exercise..."
+                  placeholder="Search exercise, muscle, or equipment..."
                   className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-50 dark:bg-charcoal-950 border border-slate-200 dark:border-charcoal-700 text-xs sm:text-sm focus:outline-none focus:border-lime-400"
                 />
               </div>
               <select
                 value={muscle}
                 onChange={(e) => setMuscle(e.target.value)}
+                aria-label="Filter picker by muscle group"
                 className="px-3 py-2 rounded-lg bg-slate-50 dark:bg-charcoal-950 border border-slate-200 dark:border-charcoal-700 text-xs sm:text-sm"
               >
                 <option value="All">All Muscles</option>
-                {MUSCLE_GROUPS.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
+                {MUSCLE_GROUP_CATEGORIES.map((cat) => (
+                  <optgroup key={cat.group} label={cat.group}>
+                    {cat.options.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             </div>
@@ -243,25 +258,28 @@ export const ExercisePickerModal: React.FC<ExercisePickerModalProps> = ({
                       onSelect(ex);
                       onClose();
                     }}
-                    className="w-full text-left p-3 rounded-xl border border-slate-200 dark:border-charcoal-800 bg-slate-50 dark:bg-charcoal-850 hover:border-lime-400/50 flex items-center justify-between transition-colors"
+                    className="w-full text-left p-2.5 rounded-xl border border-slate-200 dark:border-charcoal-800 bg-slate-50 dark:bg-charcoal-850 hover:border-lime-400/50 flex items-center justify-between gap-3 transition-colors"
                   >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-slate-900 dark:text-white">
-                          {ex.name}
-                        </span>
-                        {!ex.is_system && (
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-lime-400/15 text-lime-400">
-                            Custom
+                    <div className="flex items-center gap-3 min-w-0">
+                      <ExerciseMediaPreview exercise={ex} size="sm" />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                            {ex.name}
                           </span>
-                        )}
+                          {!ex.is_system && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-lime-400/15 text-lime-400 shrink-0">
+                              Custom
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs text-slate-400 block truncate">
+                          {ex.primary_muscle} • {ex.equipment} •{' '}
+                          {TRACKING_TYPE_LABELS[ex.tracking_type]}
+                        </span>
                       </div>
-                      <span className="text-xs text-slate-400">
-                        {ex.primary_muscle} • {ex.equipment} •{' '}
-                        {TRACKING_TYPE_LABELS[ex.tracking_type]}
-                      </span>
                     </div>
-                    <span className="p-1.5 rounded-lg bg-lime-400/15 text-lime-400">
+                    <span className="p-1.5 rounded-lg bg-lime-400/15 text-lime-400 shrink-0">
                       <Check className="w-4 h-4" />
                     </span>
                   </button>

@@ -79,32 +79,138 @@ export function formatDateShort(isoStr: string | null | undefined): string {
   });
 }
 
-export const MUSCLE_GROUPS = [
-  'Chest',
-  'Back',
-  'Shoulders',
-  'Quadriceps',
-  'Hamstrings',
-  'Glutes',
-  'Calves',
-  'Biceps',
-  'Triceps',
-  'Forearms',
-  'Core',
-  'Full Body',
-  'Cardio',
+export interface MuscleGroupCategory {
+  group: string;
+  options: readonly string[];
+}
+
+export const MUSCLE_GROUP_CATEGORIES: readonly MuscleGroupCategory[] = [
+  {
+    group: 'Chest',
+    options: [
+      'Chest',
+      'Pectoralis major',
+      'Upper chest / clavicular head',
+      'Middle and lower chest / sternal and abdominal regions',
+      'Pectoralis minor',
+      'Serratus anterior',
+    ],
+  },
+  {
+    group: 'Back',
+    options: [
+      'Back',
+      'Latissimus dorsi (lats)',
+      'Upper back',
+      'Middle back',
+      'Lower back',
+      'Rhomboids',
+      'Trapezius: upper, middle, and lower fibers',
+      'Erector spinae',
+      'Teres major and teres minor',
+    ],
+  },
+  {
+    group: 'Shoulders',
+    options: [
+      'Shoulders',
+      'Anterior deltoids',
+      'Lateral deltoids',
+      'Posterior deltoids',
+      'Rotator cuff',
+    ],
+  },
+  {
+    group: 'Arms',
+    options: [
+      'Biceps',
+      'Biceps brachii',
+      'Brachialis',
+      'Brachioradialis',
+      'Triceps',
+      'Triceps brachii: long, lateral, and medial heads',
+      'Forearms',
+      'Forearms: wrist flexors and extensors',
+      'Grip muscles',
+    ],
+  },
+  {
+    group: 'Core and Abdomen',
+    options: [
+      'Core',
+      'Rectus abdominis',
+      'Upper abs',
+      'Lower abs',
+      'Obliques: internal and external',
+      'Transverse abdominis',
+      'Deep core muscles',
+    ],
+  },
+  {
+    group: 'Hips and Glutes',
+    options: [
+      'Glutes',
+      'Gluteus maximus',
+      'Gluteus medius',
+      'Gluteus minimus',
+      'Hip abductors',
+      'Hip adductors',
+      'Hip flexors',
+      'Iliopsoas',
+    ],
+  },
+  {
+    group: 'Legs',
+    options: [
+      'Quadriceps',
+      'Rectus femoris',
+      'Vastus lateralis',
+      'Vastus medialis',
+      'Vastus intermedius',
+      'Hamstrings',
+      'Biceps femoris',
+      'Semitendinosus',
+      'Semimembranosus',
+      'Calves',
+      'Calves: gastrocnemius and soleus',
+      'Tibialis anterior',
+      'Other relevant lower-leg muscles',
+    ],
+  },
+  {
+    group: 'Additional Groups',
+    options: [
+      'Neck',
+      'Spinal stabilizers',
+      'Full Body',
+      'Olympic lifts / full-body power movements',
+      'Cardio',
+      'Mobility and stretching',
+      'Other',
+    ],
+  },
 ] as const;
+
+export const MUSCLE_GROUPS: readonly string[] = MUSCLE_GROUP_CATEGORIES.flatMap(
+  (category) => category.options
+);
 
 export const EQUIPMENT_TYPES = [
   'Barbell',
   'Dumbbell',
   'Cable',
   'Machine',
+  'Plate-Loaded Machine',
+  'Smith Machine',
   'Bodyweight',
   'Kettlebell',
   'EZ Bar',
+  'Trap Bar',
+  'Resistance Band',
   'Band',
-  'Smith Machine',
+  'Suspension / Rings',
+  'Cardio Machine',
+  'Bench / Box',
   'Other',
 ] as const;
 
@@ -112,10 +218,16 @@ export const EXERCISE_CATEGORIES = [
   'Strength',
   'Hypertrophy',
   'Bodyweight',
+  'Olympic Weightlifting',
   'Core',
   'Cardio',
   'Mobility',
+  'Mobility and stretching',
+  'Rehabilitation',
+  'Other',
 ] as const;
+
+export const DIFFICULTY_LEVELS = ['Beginner', 'Intermediate', 'Advanced'] as const;
 
 export const TRACKING_TYPE_LABELS: Record<TrackingType, string> = {
   weight_reps: 'Weight & Reps (Weighted)',

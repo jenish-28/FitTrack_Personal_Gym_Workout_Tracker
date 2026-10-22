@@ -469,3 +469,172 @@ def test_admin_panel_and_custom_routine_ordering(client: TestClient):
     assert ordered_routines[0]["is_template"] is False
     assert ordered_routines[0]["name"] == "My Priority Custom Routine"
 
+
+
+def test_muscle_group_taxonomy_and_comprehensive_library(client: TestClient):
+    headers, _ = register_and_headers(client, "Anatomy Tester", "anatomy@fittrack.app")
+
+    # 1. Verify comprehensive seeded exercise catalog (>= 75 system exercises with media & instructions)
+    all_exercises = client.get("/api/exercises", headers=headers).json()
+    system_exercises = [e for e in all_exercises if e["is_system"]]
+    assert len(system_exercises) >= 75
+    assert sum(1 for e in system_exercises if e.get("media_url")) >= 50
+    assert all(e.get("instructions") for e in system_exercises)
+    assert all(e.get("difficulty_level") in ("Beginner", "Intermediate", "Advanced") for e in system_exercises)
+
+    # 2. Create custom exercise using detailed anatomical subdivisions
+    sub_ex = client.post(
+        "/api/exercises",
+        headers=headers,
+        json={
+            "name": "Low-to-High Cable Chest Fly",
+            "primary_muscle": "Upper chest / clavicular head",
+            "secondary_muscles": ["Anterior deltoids", "Serratus anterior"],
+            "equipment": "Cable",
+            "category": "Isolation / Accessory",
+            "difficulty_level": "Intermediate",
+            "tracking_type": "weight_reps",
+            "instructions": "Set pulleys low and sweep handles upward.",
+        },
+    )
+    assert sub_ex.status_code == 201, sub_ex.text
+    created = sub_ex.json()
+    assert created["primary_muscle"] == "Upper chest / clavicular head"
+    assert "Anterior deltoids" in created["secondary_muscles"]
+    assert created["difficulty_level"] == "Intermediate"
+
+    # 3. Family-aware filtering: filtering by "Chest" includes both "Chest" and "Upper chest / clavicular head"
+    chest_filtered = client.get("/api/exercises", params={"muscle": "Chest"}, headers=headers).json()
+    assert any(e["id"] == created["id"] for e in chest_filtered)
+    assert any(e["name"] == "Bench Press" for e in chest_filtered)
+
+    # Filtering by specific subdivision "Upper chest / clavicular head" finds matching primary or secondary muscles
+    upper_chest_filtered = client.get(
+        "/api/exercises",
+        params={"muscle": "Upper chest / clavicular head"},
+        headers=headers,
+    ).json()
+    assert any(e["id"] == created["id"] for e in upper_chest_filtered)
+    assert any(e["name"] == "Incline Dumbbell Press" for e in upper_chest_filtered)
+
+    # 4. Temporary blob: URLs are rejected by validation
+    bad_blob = client.post(
+        "/api/exercises",
+        headers=headers,
+        json={
+            "name": "Blob Exercise",
+            "primary_muscle": "Other",
+            "equipment": "Bodyweight",
+            "tracking_type": "reps_only",
+            "media_url": "blob:http://localhost:5173/12345-6789",
+        },
+    )
+    assert bad_blob.status_code == 422
+
+
+def test_exercise_media_upload_replace_remove_and_permissions(client: TestClient):
+    headers_a, _ = register_and_headers(client, "Media Owner", "owner@fittrack.app")
+    headers_b, _ = register_and_headers(client, "Other User", "other@fittrack.app")
+
+    # Create a custom exercise for User A
+    ex_res = client.post(
+        "/api/exercises",
+        headers=headers_a,
+        json={
+            "name": "Zercher Squat Custom",
+            "primary_muscle": "Quadriceps",
+            "secondary_muscles": ["Gluteus maximus", "Erector spinae", "Upper back"],
+            "equipment": "Barbell",
+            "category": "Compound",
+            "difficulty_level": "Advanced",
+            "tracking_type": "weight_reps",
+        },
+    )
+    assert ex_res.status_code == 201
+    ex_id = ex_res.json()["id"]
+
+    # Valid minimal 1x1 PNG binary
+    valid_png = (
+        b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+        b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01"
+        b"\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+    )
+    # Valid minimal GIF89a binary
+    valid_gif = (
+        b"GIF89a\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00!\xf9\x04"
+        b"\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;"
+    )
+
+    # 1. Upload PNG demonstration media
+    up_png = client.post(
+        f"/api/exercises/{ex_id}/media",
+        headers=headers_a,
+        files={"file": ("demo.png", valid_png, "image/png")},
+    )
+    assert up_png.status_code == 200, up_png.text
+    media_url_1 = up_png.json()["media_url"]
+    assert media_url_1.startswith("/api/exercises/media/")
+
+    # Serve uploaded PNG and verify persistence
+    get_media_1 = client.get(media_url_1)
+    assert get_media_1.status_code == 200
+    assert get_media_1.headers["content-type"] == "image/png"
+    assert get_media_1.content == valid_png
+
+    # 2. Replace with animated GIF demonstration media
+    up_gif = client.post(
+        f"/api/exercises/{ex_id}/media",
+        headers=headers_a,
+        files={"file": ("motion.gif", valid_gif, "image/gif")},
+    )
+    assert up_gif.status_code == 200
+    media_url_2 = up_gif.json()["media_url"]
+    assert media_url_2 != media_url_1
+
+    # Old media record is cleaned up; new GIF is served
+    assert client.get(media_url_1).status_code == 404
+    get_media_2 = client.get(media_url_2)
+    assert get_media_2.status_code == 200
+    assert get_media_2.headers["content-type"] == "image/gif"
+    assert get_media_2.content == valid_gif
+
+    # 3. Reject spoofed file content or unsupported extension
+    bad_ext = client.post(
+        f"/api/exercises/{ex_id}/media",
+        headers=headers_a,
+        files={"file": ("script.svg", b"<svg></svg>", "image/svg+xml")},
+    )
+    assert bad_ext.status_code == 400
+
+    spoofed_png = client.post(
+        f"/api/exercises/{ex_id}/media",
+        headers=headers_a,
+        files={"file": ("fake.png", b"not a real png binary", "image/png")},
+    )
+    assert spoofed_png.status_code == 400
+
+    # 4. User B cannot upload or delete media on User A's exercise
+    forbid_up = client.post(
+        f"/api/exercises/{ex_id}/media",
+        headers=headers_b,
+        files={"file": ("hack.png", valid_png, "image/png")},
+    )
+    assert forbid_up.status_code == 403
+
+    forbid_del = client.delete(f"/api/exercises/{ex_id}/media", headers=headers_b)
+    assert forbid_del.status_code == 403
+
+    # Regular user cannot overwrite system exercise media
+    bench = next(e for e in client.get("/api/exercises", headers=headers_a).json() if e["is_system"])
+    sys_forbid = client.post(
+        f"/api/exercises/{bench['id']}/media",
+        headers=headers_a,
+        files={"file": ("bench.png", valid_png, "image/png")},
+    )
+    assert sys_forbid.status_code == 403
+
+    # 5. Owner can remove uploaded media cleanly
+    del_media = client.delete(f"/api/exercises/{ex_id}/media", headers=headers_a)
+    assert del_media.status_code == 200
+    assert del_media.json()["media_url"] is None
+    assert client.get(media_url_2).status_code == 404
